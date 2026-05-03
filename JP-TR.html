@@ -1,0 +1,1631 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Japonca Kart Uygulaması</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
+    h1 { text-align: center; }
+    .hidden { display: none; }
+    .card { background: white; padding: 20px; margin: 10px auto; border-radius: 8px; max-width: 400px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); text-align: center; }
+    .card p { font-size: 22px; margin: 15px 0; cursor: pointer; }
+    button { margin: 5px; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; }
+    .know { background: #4caf50; color: white; }
+    .dont-know { background: #f44336; color: white; }
+    .favorite { background: #ff9800; color: white; }
+    .menu { text-align: center; margin-bottom: 20px; }
+    .panel { background: #fff; padding: 10px; border-radius: 8px; margin: 10px auto; max-width: 600px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    .panel h2 { margin-top: 0; }
+    .stats { background: #2196f3; color: white; padding: 10px; border-radius: 8px; text-align: center; max-width: 400px; margin: 10px auto; }
+    .list-item { border-bottom: 1px solid #ddd; padding: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .list-item:last-child { border-bottom: none; }
+    .list-item span { flex-grow: 1; }
+  </style>
+</head>
+<body>
+  <h1>Japonca Kart Uygulaması</h1>
+  <div class="menu">
+    <button onclick="startLesson('all')">1- Tüm Kartlarla Çalış</button>
+    <button onclick="startLesson('favorites')">2- Favorilerle Çalış</button>
+    <button onclick="startLesson('dontknow')">3- Bilmediklerimle Çalış</button>
+    <br><br>
+    <button onclick="showAllCards()">📚 Tüm Kartlar</button>
+    <button onclick="showFavorites()">⭐ Favori Kartlar</button>
+    <button onclick="showDontKnow()">❓ Bilmediğim Kartlar</button>
+    <button onclick="showStats()">📊 İstatistikler</button>
+    <br><br>
+    <button onclick="toggleAutoPronounce()" id="pronounce-btn">🎙️ Telaffuz: Kapalı</button>
+    <button onclick="showSettings()">⚙️ Ayarlar</button>
+    <button onclick="showTrash()">🗑️ Çöp Kutusu</button>
+  </div>
+
+  <div id="card-area" class="hidden">
+    <div class="card">
+      <p id="jp-text"></p>
+      <p id="tr-text" class="hidden"></p>
+      <p id="card-status" style="font-size:14px;color:#666;"></p>
+      <p id="progress" style="font-size:13px;color:#888;"></p>
+      <button onclick="speakJapanese(currentCard.jp)">🔊 Dinle</button>
+      <br>
+      <button class="know" onclick="markKnow()">Biliyorum</button>
+      <button class="dont-know" onclick="markDontKnow()">Bilmiyorum</button>
+      <button class="favorite" onclick="toggleFavorite()">Favorilere Ekle/Çıkar</button>
+    </div>
+  </div>
+
+  <div id="list-panel" class="hidden panel"></div>
+  <div id="stats-panel" class="hidden stats"></div>
+  <div id="settings-panel" class="hidden panel"></div>
+
+  <script>
+    // Kartlar
+    let defaultCards = [
+      { jp: "あげる", tr: "yükseltmek; vermek; bol yağda kızartmak (çok fazla anlamı var)", favorite: false, dontKnow: false },
+      { jp: "赤 （あか）", tr: "kırmızı", favorite: false, dontKnow: false },
+      { jp: "病院 (びょういん)", tr: "hastahane; klinik", favorite: false, dontKnow: false },
+      { jp: "出る (でる)", tr: "çıkmak", favorite: false, dontKnow: false },
+      { jp: "公園 (こうえん)", tr: "park", favorite: false, dontKnow: false },
+      { jp: "もう一度（もういちど）", tr: "bir kez daha", favorite: false, dontKnow: false },
+      { jp: "多い (おおい)", tr: "çok", favorite: false, dontKnow: false },
+      { jp: "厚い（あつい）", tr: "kalın; yoğun, samimi (duygular için)", favorite: false, dontKnow: false },
+      { jp: "文章（ぶんしょう）", tr: "metin, yazı, kompozisyon", favorite: false, dontKnow: false },
+      { jp: "茶碗（ちゃわん）", tr: "çay kasesi; pilav kasesi", favorite: false, dontKnow: false },
+      { jp: "丁度（ちょうど）", tr: "tam (-amen, olarak, o anda vb.)", favorite: false, dontKnow: false },
+      { jp: "誰か（だれか）", tr: "biri, kimse", favorite: false, dontKnow: false },
+      { jp: "どなた", tr: "kim (resmi)", favorite: false, dontKnow: false },
+      { jp: "吹く（ふく）", tr: "üflemek; üflemeli müzik aleti çalmak; rüzgarın esmesi; tütmek (duman vb.)", favorite: false, dontKnow: false },
+      { jp: "太い（ふとい）", tr: "şişman; kalın, iri", favorite: false, dontKnow: false },
+      { jp: "封筒（ふうとう）", tr: "zarf", favorite: false, dontKnow: false },
+      { jp: "玄関（げんかん）", tr: "giriş, ön kapı", favorite: false, dontKnow: false },
+      { jp: "葉書（はがき）", tr: "kartpostal", favorite: false, dontKnow: false },
+      { jp: "灰皿（はいざら）", tr: "küllük, kül tablası", favorite: false, dontKnow: false },
+      { jp: "半分（はんぶん）", tr: "yarı", favorite: false, dontKnow: false },
+      { jp: "ハンカチ", tr: "mendil", favorite: false, dontKnow: false },
+      { jp: "貼る（はる）", tr: "yapıştırmak", favorite: false, dontKnow: false },
+      { jp: "橋 (はし)", tr: "köprü", favorite: false, dontKnow: false },
+      { jp: "辺 (へん）", tr: "bölge; (matematikte) kenar", favorite: false, dontKnow: false },
+      { jp: "引く（ひく）", tr: "çekmek (soyut ve somut olarak çok anlamlı)", favorite: false, dontKnow: false },
+      { jp: "低い (ひくい)", tr: "alçak, yüksek olmayan", favorite: false, dontKnow: false },
+      { jp: "本棚（ほんだな）", tr: "kitaplık", favorite: false, dontKnow: false },
+      { jp: "細い（ほそい）", tr: "ince, zayıf", favorite: false, dontKnow: false },
+      { jp: "如何 (いかが)", tr: "nasıl (resmi どう)", favorite: false, dontKnow: false },
+      { jp: "幾つ (いくつ)", tr: "kaç (tane, yaşında vb.)", favorite: false, dontKnow: false },
+      { jp: "要る (いる)", tr: "ihtiyacı olmak, gerekmek", favorite: false, dontKnow: false },
+      { jp: "嫌 (いや)", tr: "beğenmemek, nahoş", favorite: false, dontKnow: false },
+      { jp: "字引 (じびき)", tr: "sözlük", favorite: false, dontKnow: false },
+      { jp: "辞書 (じしょ)", tr: "sözlük", favorite: false, dontKnow: false },
+      { jp: "丈夫（じょうぶ）", tr: "dayanıklı, sağlam", favorite: false, dontKnow: false },
+      { jp: "授業 (じゅぎょう)", tr: "ders", favorite: false, dontKnow: false },
+      { jp: "花瓶 (かびん)", tr: "vazo", favorite: false, dontKnow: false },
+      { jp: "角 (かど)", tr: "köşe", favorite: false, dontKnow: false },
+      { jp: "かける", tr: "Kısaca YAPMAK / asmak; yükseltmek, kaldırmak; kilitlemek; örtmek; takmak; zaman, para harcamak; telefon etmek (çok fazla anlamı var)", favorite: false, dontKnow: false },
+      { jp: "カップ", tr: "bardak", favorite: false, dontKnow: false },
+      { jp: "軽い (かるい)", tr: "hafif", favorite: false, dontKnow: false },
+      { jp: "家庭（かてい）", tr: "ev, hane, aile", favorite: false, dontKnow: false },
+      { jp: "風邪 (かぜ)", tr: "nezle", favorite: false, dontKnow: false },
+      { jp: "警官（けいかん）", tr: "polis memuru", favorite: false, dontKnow: false },
+      { jp: "結構（けっこう）", tr: "yeterli", favorite: false, dontKnow: false },
+      { jp: "消す (けす)", tr: "silmek; söndürmek, kapatmak (elektrikli aletleri)", favorite: false, dontKnow: false },
+      { jp: "消える (きえる)", tr: "kaybolmak", favorite: false, dontKnow: false },
+      { jp: "喫茶店（きっさてん）", tr: "kafe, çay evi", favorite: false, dontKnow: false },
+      { jp: "切手（きって）", tr: "pul, damga", favorite: false, dontKnow: false },
+      { jp: "声 (こえ)", tr: "ses", favorite: false, dontKnow: false },
+      { jp: "コップ", tr: "fincan, bardak", favorite: false, dontKnow: false },
+      { jp: "交番（こうばん）", tr: "küçük karakol, polis kulübesi", favorite: false, dontKnow: false },
+      { jp: "紅茶（こうちゃ）", tr: "siyah çay", favorite: false, dontKnow: false },
+      { jp: "交差点（こうさてん）", tr: "kavşak; kesişim noktası", favorite: false, dontKnow: false },
+      { jp: "兄弟 (きょうだい)", tr: "kardeş", favorite: false, dontKnow: false },
+      { jp: "教室 (きょうしつ)", tr: "sınıf; dershane", favorite: false, dontKnow: false },
+      { jp: "マッチ", tr: "maç; kibrit", favorite: false, dontKnow: false },
+      { jp: "曲がる（まがる）", tr: "dönmek; bükülmek, eğrilmek", favorite: false, dontKnow: false },
+      { jp: "万年筆（まんねんひつ）", tr: "dolma kalem", favorite: false, dontKnow: false },
+      { jp: "磨く (みがく)", tr: "parlatmak, cilalamak, fırçalamak", favorite: false, dontKnow: false },
+      { jp: "向こう (むこう)", tr: "karşı taraf; öte; ora", favorite: false, dontKnow: false },
+      { jp: "村 (むら）", tr: "köy", favorite: false, dontKnow: false },
+      { jp: "鳴く (なく)", tr: "havlamak; miyavlamak; ötmek, vb.", favorite: false, dontKnow: false },
+      { jp: "並ぶ (ならぶ)", tr: "sırada beklemek", favorite: false, dontKnow: false },
+      { jp: "何故 (なぜ)", tr: "neden; nasıl", favorite: false, dontKnow: false },
+      { jp: "日記 (にっき)", tr: "günlük", favorite: false, dontKnow: false },
+      { jp: "温い(ぬるい)", tr: "ılımış (ılık)", favorite: false, dontKnow: false },
+      { jp: "覚える (おぼえる)", tr: "ezberlemek, hatırlamak; hissetmek", favorite: false, dontKnow: false },
+      { jp: "置く（おく）", tr: "koymak, yerleştirmek, bırakmak", favorite: false, dontKnow: false },
+      { jp: "お巡りさん（おまわりさん）", tr: "polis", favorite: false, dontKnow: false },
+      { jp: "重い (おもい)", tr: "ağır", favorite: false, dontKnow: false },
+      { jp: "同じ (おなじ)", tr: "aynı", favorite: false, dontKnow: false },
+      { jp: "大勢（おおぜい）", tr: "kalabalık", favorite: false, dontKnow: false },
+      { jp: "遅い (おそい)", tr: "geç; yavaş", favorite: false, dontKnow: false },
+      { jp: "一昨年（いっさくねん, おととし）", tr: "2 yıl önceki yıl", favorite: false, dontKnow: false },
+      { jp: "ページ", tr: "sayfa", favorite: false, dontKnow: false },
+      { jp: "零(れい)", tr: "sıfır", favorite: false, dontKnow: false },
+      { jp: "立派(りっぱ)", tr: "mükemmel, görkemli, saygın", favorite: false, dontKnow: false },
+      { jp: "廊下（ろうか）", tr: "koridor, pasaj", favorite: false, dontKnow: false },
+      { jp: "両親 (りょうしん)", tr: "ebeveyn, anne-baba", favorite: false, dontKnow: false },
+      { jp: "先 (さき) (セン)", tr: "önceki, önden; gelecek; bir şeyin ucu, sonu; hedef", favorite: false, dontKnow: false },
+      { jp: "咲く（さく）", tr: "çiçek açmak", favorite: false, dontKnow: false },
+      { jp: "作文（さくぶん）", tr: "yazılı ödev, kompozisyon (genelde öğrenciler için ödev olarak verilen yazı ödevi)", favorite: false, dontKnow: false },
+      { jp: "再来年（さらいねん）", tr: "2 yıl sonraki yıl", favorite: false, dontKnow: false },
+      { jp: "差す（さす）", tr: "parlamak; görünür hale gelmek; şemsiye açmak/tutmak; işaret ederek göstermek; ışık saçmak (çok fazla anlamı var)", favorite: false, dontKnow: false },
+      { jp: "背(せ)", tr: "sırt, arka; boy", favorite: false, dontKnow: false },
+      { jp: "背広 (せびろ)", tr: "takım elbise", favorite: false, dontKnow: false },
+      { jp: "生徒（せいと）", tr: "öğrenci", favorite: false, dontKnow: false },
+      { jp: "浴びる (あびる)", tr: "yıkanmak, duş almak, banyo yapmak; güneşlenmek; maruz kalmak (eleştiri, iltifat, vb.)", favorite: false, dontKnow: false },
+      { jp: "危ない (あぶない)", tr: "tehlikeli, riskli", favorite: false, dontKnow: false },
+      { jp: "あっち", tr: "orası", favorite: false, dontKnow: false },
+      { jp: "あちら", tr: "orası", favorite: false, dontKnow: false },
+      { jp: "赤い (あかい)", tr: "kırmızı", favorite: false, dontKnow: false },
+      { jp: "明るい (あかるい)", tr: "aydınlık, parlak; neşeli", favorite: false, dontKnow: false },
+      { jp: "開ける (あける)", tr: "açmak", favorite: false, dontKnow: false },
+      { jp: "秋 (あき)", tr: "sonbahar", favorite: false, dontKnow: false },
+      { jp: "開く (あく / ひらく)", tr: "açmak / (bir etkinlik) düzenlemek; açmak", favorite: false, dontKnow: false },
+      { jp: "甘い (あまい)", tr: "tatlı, şekerli", favorite: false, dontKnow: false },
+      { jp: "雨 (あめ) (ウ)", tr: "yağmur", favorite: false, dontKnow: false },
+      { jp: "飴 （あめ）", tr: "(sert) şeker", favorite: false, dontKnow: false },
+      { jp: "あなた", tr: "siz, sen", favorite: false, dontKnow: false },
+      { jp: "姉 (あね)", tr: "ablam", favorite: false, dontKnow: false },
+      { jp: "兄 (あに)", tr: "abim", favorite: false, dontKnow: false },
+      { jp: "あの", tr: "o", favorite: false, dontKnow: false },
+      { jp: "青 （あお）", tr: "mavi; yeşil", favorite: false, dontKnow: false },
+      { jp: "青い (あおい)", tr: "mavi; yeşil; solgun; ermemiş; çaylak, tecrübesiz", favorite: false, dontKnow: false },
+      { jp: "アパート", tr: "apartman", favorite: false, dontKnow: false },
+      { jp: "洗う (あらう)", tr: "yıkamak", favorite: false, dontKnow: false },
+      { jp: "あれ", tr: "o", favorite: false, dontKnow: false },
+      { jp: "有る (ある）", tr: "olmak, var olmak (cansız nesneler)", favorite: false, dontKnow: false },
+      { jp: "歩く (あるく)", tr: "yürümek", favorite: false, dontKnow: false },
+      { jp: "朝 (あさ) (チョウ)", tr: "sabah", favorite: false, dontKnow: false },
+      { jp: "朝ご飯 (あさごはん)", tr: "kahvaltı", favorite: false, dontKnow: false },
+      { jp: "明後日（あさって）", tr: "yarından sonraki gün", favorite: false, dontKnow: false },
+      { jp: "足 (あし) (ソク)", tr: "bacak; ayak", favorite: false, dontKnow: false },
+      { jp: "明日 (あした) (アス) (ミョウニチ)", tr: "yarın", favorite: false, dontKnow: false },
+      { jp: "遊ぶ (あそぶ)", tr: "oynamak, eğlenmek, boşa vakit geçirmek", favorite: false, dontKnow: false },
+      { jp: "あそこ", tr: "orada", favorite: false, dontKnow: false },
+      { jp: "頭 (あたま)", tr: "kafa; başlangıç", favorite: false, dontKnow: false },
+      { jp: "新しい (あたらしい)", tr: "yeni", favorite: false, dontKnow: false },
+      { jp: "暖かい (あたたかい)", tr: "ılık, sıcak", favorite: false, dontKnow: false },
+      { jp: "後 (あと) (ウシロ) (ゴ) (コウ)", tr: "sonra, ertesi; art, arka", favorite: false, dontKnow: false },
+      { jp: "暑い (あつい)", tr: "sıcak (hava)", favorite: false, dontKnow: false },
+      { jp: "会う (あう)", tr: "buluşmak, karşılaşmak; tanışmak", favorite: false, dontKnow: false },
+      { jp: "晩ご飯（ばんごはん）", tr: "akşam yemeği", favorite: false, dontKnow: false },
+      { jp: "番号 (ばんごう)", tr: "numara", favorite: false, dontKnow: false },
+      { jp: "バス", tr: "otobüs", favorite: false, dontKnow: false },
+      { jp: "バター", tr: "tereyağı", favorite: false, dontKnow: false },
+      { jp: "ベッド", tr: "yatak", favorite: false, dontKnow: false },
+      { jp: "勉強 （べんきょう）", tr: "ders çalışma, öğrenme; inceleme", favorite: false, dontKnow: false },
+      { jp: "便利 (べんり)", tr: "elverişli, uygun", favorite: false, dontKnow: false },
+      { jp: "ボールペン", tr: "tükenmez kalem", favorite: false, dontKnow: false },
+      { jp: "ボタン", tr: "düğme, buton, tuş", favorite: false, dontKnow: false },
+      { jp: "帽子（ぼうし）", tr: "şapka, bere", favorite: false, dontKnow: false },
+      { jp: "豚肉（ぶたにく）", tr: "domuz eti", favorite: false, dontKnow: false },
+      { jp: "病気 (びょうき)", tr: "hastalık, rahatsızlık", favorite: false, dontKnow: false },
+      { jp: "茶色 (ちゃいろ)", tr: "kahverengi", favorite: false, dontKnow: false },
+      { jp: "父 (ちち)", tr: "babam", favorite: false, dontKnow: false },
+      { jp: "違う (ちがう)", tr: "farklı", favorite: false, dontKnow: false },
+      { jp: "小さい (ちいさい)", tr: "küçük", favorite: false, dontKnow: false },
+      { jp: "小さな （ちいさな）", tr: "küçük", favorite: false, dontKnow: false },
+      { jp: "近い (ちかい)", tr: "yakın", favorite: false, dontKnow: false },
+      { jp: "地下鉄（ちかてつ）", tr: "metro", favorite: false, dontKnow: false },
+      { jp: "地図 (ちず)", tr: "harita", favorite: false, dontKnow: false },
+      { jp: "ちょっと", tr: "biraz; kibarca reddetme ifadesi", favorite: false, dontKnow: false },
+      { jp: "台所（だいどころ）", tr: "mutfak", favorite: false, dontKnow: false },
+      { jp: "大学 (だいがく)", tr: "üniversite", favorite: false, dontKnow: false },
+      { jp: "大丈夫 (だいじょうぶ)", tr: "OK", favorite: false, dontKnow: false },
+      { jp: "大好き (だいすき)", tr: "çok sevmek", favorite: false, dontKnow: false },
+      { jp: "だんだん", tr: "adım adım, yavaş yavaş", favorite: false, dontKnow: false },
+      { jp: "誰 (だれ)", tr: "kim", favorite: false, dontKnow: false },
+      { jp: "出す (だす)", tr: "çıkarmak; göndermek; uzatmak; vermek, ödemek; yayınlamak; açmak", favorite: false, dontKnow: false },
+      { jp: "出口 (でぐち)", tr: "çıkış", favorite: false, dontKnow: false },
+      { jp: "出かける (でかける)", tr: "dışarı çıkmak", favorite: false, dontKnow: false },
+      { jp: "電気 (でんき)", tr: "elektrik; ışık", favorite: false, dontKnow: false },
+      { jp: "電車 (でんしゃ)", tr: "tren", favorite: false, dontKnow: false },
+      { jp: "電話 (でんわ)", tr: "telefon", favorite: false, dontKnow: false },
+      { jp: "デパート", tr: "alışveriş merkezi", favorite: false, dontKnow: false },
+      { jp: "ドア", tr: "kapı", favorite: false, dontKnow: false },
+      { jp: "どっち", tr: "hangisi (2 şey arasında)", favorite: false, dontKnow: false },
+      { jp: "どちら", tr: "hangisi (2 şey arasında)", favorite: false, dontKnow: false },
+      { jp: "どこ", tr: "nerede, neresi", favorite: false, dontKnow: false },
+      { jp: "どの", tr: "hangisi", favorite: false, dontKnow: false },
+      { jp: "どれ", tr: "hangisi (3 veya daha çok şey arasında)", favorite: false, dontKnow: false },
+      { jp: "どう", tr: "nasıl (günlük)", favorite: false, dontKnow: false },
+      { jp: "動物 (どうぶつ)", tr: "hayvan", favorite: false, dontKnow: false },
+      { jp: "どうも", tr: "teşekkürler", favorite: false, dontKnow: false },
+      { jp: "どうぞ", tr: "buyrun; lütfen", favorite: false, dontKnow: false },
+      { jp: "土曜日 (どようび)", tr: "Cumartesi", favorite: false, dontKnow: false },
+      { jp: "絵 （え）", tr: "resim, çizim, şekil", favorite: false, dontKnow: false },
+      { jp: "ええ", tr: "evet", favorite: false, dontKnow: false },
+      { jp: "映画 (えいが)", tr: "film", favorite: false, dontKnow: false },
+      { jp: "映画館 (えいがかん)", tr: "sinema salonu", favorite: false, dontKnow: false },
+      { jp: "英語 (えいご)", tr: "İngilizce", favorite: false, dontKnow: false },
+      { jp: "駅 （えき）", tr: "istasyon", favorite: false, dontKnow: false },
+      { jp: "鉛筆 (えんぴつ)", tr: "kurşun kalem", favorite: false, dontKnow: false },
+      { jp: "エレベーター", tr: "asansör", favorite: false, dontKnow: false },
+      { jp: "フィルム", tr: "film", favorite: false, dontKnow: false },
+      { jp: "フォーク", tr: "çatal", favorite: false, dontKnow: false },
+      { jp: "服 (ふく)", tr: "kıyafet", favorite: false, dontKnow: false },
+      { jp: "降る (ふる)", tr: "yağmak, düşmek (yağmur, kar)", favorite: false, dontKnow: false },
+      { jp: "古い (ふるい)", tr: "eski", favorite: false, dontKnow: false },
+      { jp: "二人（ふたり）", tr: "iki kişi", favorite: false, dontKnow: false },
+      { jp: "二つ (ふたつ)", tr: "İki şey", favorite: false, dontKnow: false },
+      { jp: "二日 （ふつか）", tr: "ayın ikinci günü; iki gün", favorite: false, dontKnow: false },
+      { jp: "冬 (ふゆ)", tr: "kış", favorite: false, dontKnow: false },
+      { jp: "外国 （がいこく）", tr: "yabancı ülke", favorite: false, dontKnow: false },
+      { jp: "外国人 (がいこくじん)", tr: "yabancı ülke vatandaşı", favorite: false, dontKnow: false },
+      { jp: "学校 (がっこう)", tr: "okul", favorite: false, dontKnow: false },
+      { jp: "学生 (がくせい)", tr: "öğrenci", favorite: false, dontKnow: false },
+      { jp: "元気 (げんき)", tr: "enerjik, sağlıklı", favorite: false, dontKnow: false },
+      { jp: "月曜日 (げつようび)", tr: "Pazartesi", favorite: false, dontKnow: false },
+      { jp: "銀行 (ぎんこう)", tr: "banka", favorite: false, dontKnow: false },
+      { jp: "ギター", tr: "gitar", favorite: false, dontKnow: false },
+      { jp: "五 (ご)", tr: "5", favorite: false, dontKnow: false },
+      { jp: "午後 (ごご)", tr: "öğleden sonra", favorite: false, dontKnow: false },
+      { jp: "ご飯 (ごはん)", tr: "pilav; yemek", favorite: false, dontKnow: false },
+      { jp: "午前 (ごぜん)", tr: "öğleden önce", favorite: false, dontKnow: false },
+      { jp: "グラム", tr: "gram", favorite: false, dontKnow: false },
+      { jp: "牛肉（ぎゅうにく）", tr: "dana eti", favorite: false, dontKnow: false },
+      { jp: "牛乳（ぎゅうにゅう）", tr: "süt (inek)", favorite: false, dontKnow: false },
+      { jp: "歯 (は)", tr: "diş", favorite: false, dontKnow: false },
+      { jp: "八 (はち) (ヤツ) (ヨウ)", tr: "sekiz", favorite: false, dontKnow: false },
+      { jp: "母 (はは)", tr: "annem", favorite: false, dontKnow: false },
+      { jp: "はい", tr: "evet", favorite: false, dontKnow: false },
+      { jp: "入る (はいる)", tr: "girmek; katılmak; dahil olmak", favorite: false, dontKnow: false },
+      { jp: "始まる (はじまる)", tr: "başlamak", favorite: false, dontKnow: false },
+      { jp: "初めて（はじめて）", tr: "ilk defa, ilk kez", favorite: false, dontKnow: false },
+      { jp: "箱 (はこ）", tr: "kutu, kasa, sandık", favorite: false, dontKnow: false },
+      { jp: "履く (はく)", tr: "(alt vücut giysileri) giymek", favorite: false, dontKnow: false },
+      { jp: "半 (はん)", tr: "yarım", favorite: false, dontKnow: false },
+      { jp: "花 (はな)", tr: "çiçek", favorite: false, dontKnow: false },
+      { jp: "鼻 (はな)", tr: "burun", favorite: false, dontKnow: false },
+      { jp: "話 (はなし)", tr: "konuşma", favorite: false, dontKnow: false },
+      { jp: "話す (はなす)", tr: "konuşmak, bir dili konuşabilmek", favorite: false, dontKnow: false },
+      { jp: "晴れ (はれ)", tr: "açık hava, güneşli hava", favorite: false, dontKnow: false },
+      { jp: "晴れる（はれる）", tr: "güneş açmak", favorite: false, dontKnow: false },
+      { jp: "春 (はる)", tr: "İlkbahar", favorite: false, dontKnow: false },
+      { jp: "箸 (はし）", tr: "yemek çubukları", favorite: false, dontKnow: false },
+      { jp: "走る (はしる)", tr: "koşmak", favorite: false, dontKnow: false },
+      { jp: "二十歳（はたち）", tr: "20 yaşında", favorite: false, dontKnow: false },
+      { jp: "働く (はたらく)", tr: "çalışma (işte)", favorite: false, dontKnow: false },
+      { jp: "二十日（はつか）", tr: "ayın yirminci günü; yirmi gün", favorite: false, dontKnow: false },
+      { jp: "はやい", tr: "hızlı, çabuk", favorite: false, dontKnow: false },
+      { jp: "下手 (へた)", tr: "yeteneksiz", favorite: false, dontKnow: false },
+      { jp: "部屋 (へや)", tr: "oda; apartman dairesi", favorite: false, dontKnow: false },
+      { jp: "左 (ひだり) (サ)", tr: "sol (yön)", favorite: false, dontKnow: false },
+      { jp: "東 (ひがし) (トウ)", tr: "doğu", favorite: false, dontKnow: false },
+      { jp: "飛行機（ひこうき）", tr: "uçak", favorite: false, dontKnow: false },
+      { jp: "弾く（ひく）", tr: "(telli veya klavyeli bir müzik enstrümanı) çalmak", favorite: false, dontKnow: false },
+      { jp: "暇 (ひま) (イトマ)", tr: "meşgul olmayan, boş zaman", favorite: false, dontKnow: false },
+      { jp: "広い (ひろい)", tr: "geniş", favorite: false, dontKnow: false },
+      { jp: "昼 (ひる)", tr: "öğle", favorite: false, dontKnow: false },
+      { jp: "昼ご飯（ひるごはん）", tr: "öğle yemeği", favorite: false, dontKnow: false },
+      { jp: "人 (ひと) (ジン) (ニン)", tr: "insan; kişi", favorite: false, dontKnow: false },
+      { jp: "一人 (ひとり)", tr: "tek kişi", favorite: false, dontKnow: false },
+      { jp: "一つ (ひとつ)", tr: "bir şey", favorite: false, dontKnow: false },
+      { jp: "ほか", tr: "diğer, başka, öbür", favorite: false, dontKnow: false },
+      { jp: "本 (ほん)", tr: "kitap; uzun ve ince şeyler, filmler ve diziler, goller ve puanlar, telefon aramaları için sayma sözcüğü", favorite: false, dontKnow: false },
+      { jp: "本当 (ほんとう)", tr: "gerçek, doğru, asıl", favorite: false, dontKnow: false },
+      { jp: "欲しい (ほしい)", tr: "istemek", favorite: false, dontKnow: false },
+      { jp: "ホテル", tr: "otel", favorite: false, dontKnow: false },
+      { jp: "百 (ひゃく)", tr: "yüz", favorite: false, dontKnow: false },
+      { jp: "一 (いち)", tr: "1", favorite: false, dontKnow: false },
+      { jp: "一番 (いちばん)", tr: "bir numara, en iyisi", favorite: false, dontKnow: false },
+      { jp: "一日 (いちにち) (ツイタチ)", tr: "bir gün; tüm gün; ayın birinci günü", favorite: false, dontKnow: false },
+      { jp: "家 (いえ) (カ) (ヤ) (ウチ)", tr: "ev", favorite: false, dontKnow: false },
+      { jp: "池（いけ）", tr: "gölet; süs havuzu", favorite: false, dontKnow: false },
+      { jp: "行く (いく)", tr: "gitmek", favorite: false, dontKnow: false },
+      { jp: "いくら", tr: "ne kadar", favorite: false, dontKnow: false },
+      { jp: "今 (いま)", tr: "şimdi, şu an", favorite: false, dontKnow: false },
+      { jp: "意味 (いみ)", tr: "anlam", favorite: false, dontKnow: false },
+      { jp: "妹 (いもうと)", tr: "küçük kız kardeş", favorite: false, dontKnow: false },
+      { jp: "犬 (いぬ)", tr: "köpek", favorite: false, dontKnow: false },
+      { jp: "入れる (いれる)", tr: "içine koymak", favorite: false, dontKnow: false },
+      { jp: "入口 (いりぐち)", tr: "giriş", favorite: false, dontKnow: false },
+      { jp: "色 (いろ)", tr: "renk", favorite: false, dontKnow: false },
+      { jp: "色々 (いろいろ)", tr: "çeşit çeşit", favorite: false, dontKnow: false },
+      { jp: "居る (いる)", tr: "olmak, var olmak (canlı nesneler)", favorite: false, dontKnow: false },
+      { jp: "医者 (いしゃ)", tr: "doktor", favorite: false, dontKnow: false },
+      { jp: "忙しい (いそがしい)", tr: "meşgul, yoğun", favorite: false, dontKnow: false },
+      { jp: "一緒 (いっしょ)", tr: "birlikte, beraber", favorite: false, dontKnow: false },
+      { jp: "椅子 (いす)", tr: "sandalye", favorite: false, dontKnow: false },
+      { jp: "痛い (いたい)", tr: "acı hissetme, ağrı hissetme", favorite: false, dontKnow: false },
+      { jp: "いつ", tr: "ne zaman", favorite: false, dontKnow: false },
+      { jp: "五日（いつか）", tr: "ayın beşinci günü; beş gün", favorite: false, dontKnow: false },
+      { jp: "五つ (いつつ)", tr: "beş şey", favorite: false, dontKnow: false },
+      { jp: "言う (いう) (コト) (ゲン)", tr: "söylemek", favorite: false, dontKnow: false },
+      { jp: "じゃあ", tr: "o halde, pekala / well then", favorite: false, dontKnow: false },
+      { jp: "自分 (じぶん)", tr: "kendi", favorite: false, dontKnow: false },
+      { jp: "自動車 (じどうしゃ)", tr: "otomobil", favorite: false, dontKnow: false },
+      { jp: "時間 (じかん)", tr: "zaman, saat", favorite: false, dontKnow: false },
+      { jp: "自転車 (じてんしゃ)", tr: "bisiklet", favorite: false, dontKnow: false },
+      { jp: "上手 (じょうず)", tr: "yetenekli, becerikli", favorite: false, dontKnow: false },
+      { jp: "十 (じゅう) (トオ)", tr: "10", favorite: false, dontKnow: false },
+      { jp: "鞄 (かばん)", tr: "çanta, bavul", favorite: false, dontKnow: false },
+      { jp: "帰る (かえる)", tr: "geri dönmek", favorite: false, dontKnow: false },
+      { jp: "返す（かえす）", tr: "iade etmek, geri vermek", favorite: false, dontKnow: false },
+      { jp: "鍵 (かぎ)", tr: "anahtar; kilit", favorite: false, dontKnow: false },
+      { jp: "階段 (かいだん)", tr: "merdiven, basamak", favorite: false, dontKnow: false },
+      { jp: "買い物 (かいもの)", tr: "alışveriş", favorite: false, dontKnow: false },
+      { jp: "会社 (かいしゃ)", tr: "şirket", favorite: false, dontKnow: false },
+      { jp: "かかる", tr: "sürmek (vakit almak); (para) tutmak", favorite: false, dontKnow: false },
+      { jp: "書く (かく)", tr: "yazmak; çizmek", favorite: false, dontKnow: false },
+      { jp: "紙 (かみ)", tr: "kağıt", favorite: false, dontKnow: false },
+      { jp: "漢字 (かんじ)", tr: "kanji; Çin harfleri", favorite: false, dontKnow: false },
+      { jp: "体 (からだ) (タイ)", tr: "vücut", favorite: false, dontKnow: false },
+      { jp: "辛い (からい) / (つらい, づらい)", tr: "baharatlı; acı; tuzlu (tat olarak) / acı; zorlu (duygusal olarak)", favorite: false, dontKnow: false },
+      { jp: "カレー", tr: "köri", favorite: false, dontKnow: false },
+      { jp: "カレンダー", tr: "takvim", favorite: false, dontKnow: false },
+      { jp: "借りる（かりる）", tr: "borç almak; ödünç almak; kiralamak (alıcı olarak)", favorite: false, dontKnow: false },
+      { jp: "傘 (かさ)", tr: "şemsiye", favorite: false, dontKnow: false },
+      { jp: "貸す（かす）", tr: "ödünç vermek; kiralamak (verici olarak)", favorite: false, dontKnow: false },
+      { jp: "方 (かた) (ホウ)", tr: "yön; yöntem; kişi", favorite: false, dontKnow: false },
+      { jp: "買う (かう)", tr: "satın almak", favorite: false, dontKnow: false },
+      { jp: "川 (かわ)", tr: "nehir, ırmak", favorite: false, dontKnow: false },
+      { jp: "可愛い（かわいい）", tr: "şirin, sevimli; güzel", favorite: false, dontKnow: false },
+      { jp: "火曜日 (かようび)", tr: "Salı", favorite: false, dontKnow: false },
+      { jp: "風 (かぜ)", tr: "rüzgar", favorite: false, dontKnow: false },
+      { jp: "家族 (かぞく)", tr: "aile", favorite: false, dontKnow: false },
+      { jp: "結婚 (けっこん)", tr: "evlilik", favorite: false, dontKnow: false },
+      { jp: "今朝 (けさ)", tr: "bu sabah", favorite: false, dontKnow: false },
+      { jp: "木 (き) (モク)", tr: "ağaç; odun, kereste", favorite: false, dontKnow: false },
+      { jp: "黄色い（きいろい）", tr: "sarı", favorite: false, dontKnow: false },
+      { jp: "聞く (きく)", tr: "duymak; dinlemek; sormak", favorite: false, dontKnow: false },
+      { jp: "昨日 (きのう)", tr: "dün", favorite: false, dontKnow: false },
+      { jp: "金曜日 (きんようび)", tr: "Cuma", favorite: false, dontKnow: false },
+      { jp: "切符 (きっぷ)", tr: "bilet", favorite: false, dontKnow: false },
+      { jp: "嫌い (きらい)", tr: "sevmemek, hoşlanmamak", favorite: false, dontKnow: false },
+      { jp: "綺麗 (きれい)", tr: "güzel, hoş; temiz", favorite: false, dontKnow: false },
+      { jp: "切る (きる)", tr: "kesmek (herhangi bir şeyi kesmek ile ilgili çok fazla anlamı var.)", favorite: false, dontKnow: false },
+      { jp: "着る (きる)", tr: "giymek (gövde kısmı veya tamamı)", favorite: false, dontKnow: false },
+      { jp: "北 (きた) (ホク)", tr: "kuzey", favorite: false, dontKnow: false },
+      { jp: "汚い (きたない)", tr: "kirli, pis", favorite: false, dontKnow: false },
+      { jp: "こっち", tr: "bu taraf (gündelik)", favorite: false, dontKnow: false },
+      { jp: "こちら", tr: "bu taraf (resmi)", favorite: false, dontKnow: false },
+      { jp: "子供 (こども)", tr: "çocuk", favorite: false, dontKnow: false },
+      { jp: "ここ", tr: "burası", favorite: false, dontKnow: false },
+      { jp: "九日（ここのか）", tr: "dokuz gün; ayın dokuzuncu günü", favorite: false, dontKnow: false },
+      { jp: "九つ（ここのつ）", tr: "dokuz şey", favorite: false, dontKnow: false },
+      { jp: "困る（こまる）", tr: "başı dertte olmak, sıkıntı çekmek, zorlanmak", favorite: false, dontKnow: false },
+      { jp: "今晩 (こんばん)", tr: "bu akşam, bu gece", favorite: false, dontKnow: false },
+      { jp: "今月 (こんげつ)", tr: "bu ay", favorite: false, dontKnow: false },
+      { jp: "こんな", tr: "böyle; bu tarz", favorite: false, dontKnow: false },
+      { jp: "この", tr: "bu", favorite: false, dontKnow: false },
+      { jp: "今週 (こんしゅう)", tr: "bu hafta", favorite: false, dontKnow: false },
+      { jp: "コーヒー", tr: "kahve", favorite: false, dontKnow: false },
+      { jp: "コート", tr: "palto, pardösü", favorite: false, dontKnow: false },
+      { jp: "コピー", tr: "fotokopi", favorite: false, dontKnow: false },
+      { jp: "これ", tr: "bu", favorite: false, dontKnow: false },
+      { jp: "答える (こたえる)", tr: "cevap vermek", favorite: false, dontKnow: false },
+      { jp: "言葉 (ことば)", tr: "kelime; dil", favorite: false, dontKnow: false },
+      { jp: "今年 (ことし) (コンネン)", tr: "bu yıl", favorite: false, dontKnow: false },
+      { jp: "口 (くち) (コウ)", tr: "ağız", favorite: false, dontKnow: false },
+      { jp: "果物 (くだもの)", tr: "meyve", favorite: false, dontKnow: false },
+      { jp: "下さい（ください）", tr: "lütfen", favorite: false, dontKnow: false },
+      { jp: "曇り (くもり)", tr: "bulutlu (hava)", favorite: false, dontKnow: false },
+      { jp: "曇る（くもる）", tr: "bulutlanmak (havanın bulutlu hale gelmesi)", favorite: false, dontKnow: false },
+      { jp: "国 (くに)", tr: "ülke, memleket", favorite: false, dontKnow: false },
+      { jp: "暗い (くらい)", tr: "karanlık; karamsar", favorite: false, dontKnow: false },
+      { jp: "クラス", tr: "sınıf", favorite: false, dontKnow: false },
+      { jp: "黒 (くろ)", tr: "siyah", favorite: false, dontKnow: false },
+      { jp: "黒い (くろい)", tr: "siyah, kara", favorite: false, dontKnow: false },
+      { jp: "来る (くる)", tr: "gelmek", favorite: false, dontKnow: false },
+      { jp: "車 (くるま) (シャ)", tr: "araba", favorite: false, dontKnow: false },
+      { jp: "薬 (くすり)", tr: "ilaç", favorite: false, dontKnow: false },
+      { jp: "靴 (くつ)", tr: "ayakkabı", favorite: false, dontKnow: false },
+      { jp: "靴下 (くつした)", tr: "çorap", favorite: false, dontKnow: false },
+      { jp: "去年（きょねん）", tr: "geçen yıl", favorite: false, dontKnow: false },
+      { jp: "今日 (きょう)", tr: "bugün", favorite: false, dontKnow: false },
+      { jp: "教室（きょうしつ）", tr: "sınıf, dershane", favorite: false, dontKnow: false },
+      { jp: "九 (きゅう) (ク)", tr: "9", favorite: false, dontKnow: false },
+      { jp: "町 (まち) (チョウ)", tr: "şehir, kasaba", favorite: false, dontKnow: false },
+      { jp: "窓 (まど)", tr: "pencere", favorite: false, dontKnow: false },
+      { jp: "前 (まえ) (ゼン)", tr: "önce, ön; önceden, eskiden", favorite: false, dontKnow: false },
+      { jp: "毎朝（まいあさ）", tr: "her sabah", favorite: false, dontKnow: false },
+      { jp: "毎晩（まいばん）", tr: "her akşam; her gece", favorite: false, dontKnow: false },
+      { jp: "毎日 (まいにち)", tr: "her gün", favorite: false, dontKnow: false },
+      { jp: "毎週 (まいしゅう)", tr: "her hafta", favorite: false, dontKnow: false },
+      { jp: "毎年 (まいねん、まいとし)", tr: "her yıl", favorite: false, dontKnow: false },
+      { jp: "毎月 (まいつき, まいげつ)", tr: "her ay", favorite: false, dontKnow: false },
+      { jp: "万 (まん)", tr: "10.000", favorite: false, dontKnow: false },
+      { jp: "丸い (まるい)", tr: "yuvarlak, dairesel", favorite: false, dontKnow: false },
+      { jp: "真っ直ぐ（まっすぐ）", tr: "dümdüz", favorite: false, dontKnow: false },
+      { jp: "待つ (まつ)", tr: "beklemek", favorite: false, dontKnow: false },
+      { jp: "不味い (まずい)", tr: "lezzetsiz, tatsız, iğrenç", favorite: false, dontKnow: false },
+      { jp: "目 (め) (モク)", tr: "göz", favorite: false, dontKnow: false },
+      { jp: "眼鏡（めがね）", tr: "gözlük", favorite: false, dontKnow: false },
+      { jp: "道 (みち)", tr: "yol, cadde", favorite: false, dontKnow: false },
+      { jp: "緑 (みどり)", tr: "yeşil", favorite: false, dontKnow: false },
+      { jp: "右 (みぎ) (ウ)", tr: "sağ (yön)", favorite: false, dontKnow: false },
+      { jp: "短い (みじかい)", tr: "kısa", favorite: false, dontKnow: false },
+      { jp: "三日 (みっか)", tr: "üç gün; ayın üçüncü günü", favorite: false, dontKnow: false },
+      { jp: "耳 (みみ)", tr: "kulak", favorite: false, dontKnow: false },
+      { jp: "南 (みなみ) (ナン)", tr: "güney", favorite: false, dontKnow: false },
+      { jp: "皆さん（みなさん）", tr: "herkes (resmi)", favorite: false, dontKnow: false },
+      { jp: "皆 (みんな, みな)", tr: "herkes; tüm", favorite: false, dontKnow: false },
+      { jp: "見る (みる)", tr: "görmek; bakmak; izlemek", favorite: false, dontKnow: false },
+      { jp: "店 (みせ) (テン)", tr: "dükkan, mağaza", favorite: false, dontKnow: false },
+      { jp: "見せる (みせる)", tr: "göstermek", favorite: false, dontKnow: false },
+      { jp: "三つ (みっつ)", tr: "üç şey", favorite: false, dontKnow: false },
+      { jp: "水 (みず) (スイ)", tr: "su", favorite: false, dontKnow: false },
+      { jp: "木曜日 (もくようび)", tr: "Perşembe", favorite: false, dontKnow: false },
+      { jp: "門 (もん)", tr: "kapı, geçit", favorite: false, dontKnow: false },
+      { jp: "問題 (もんだい)", tr: "problem, soru, sorun", favorite: false, dontKnow: false },
+      { jp: "物 (もの) (ブツ)", tr: "şey", favorite: false, dontKnow: false },
+      { jp: "持つ (もつ)", tr: "sahip olmak; tutmak; taşıyor olmak", favorite: false, dontKnow: false },
+      { jp: "もっと", tr: "daha fazla", favorite: false, dontKnow: false },
+      { jp: "六日（むいか）", tr: "ayın altıncı günü; altı gün", favorite: false, dontKnow: false },
+      { jp: "六つ (むっつ)", tr: "altı şey", favorite: false, dontKnow: false },
+      { jp: "難しい (むずかしい)", tr: "zor", favorite: false, dontKnow: false },
+      { jp: "長い (ながい)", tr: "uzun", favorite: false, dontKnow: false },
+      { jp: "ナイフ", tr: "bıçak", favorite: false, dontKnow: false },
+      { jp: "中 (なか) (チュウ)", tr: "içi; ortası", favorite: false, dontKnow: false },
+      { jp: "無くす（なくす）", tr: "kaybetmek; kurtulmak", favorite: false, dontKnow: false },
+      { jp: "名前 (なまえ)", tr: "isim", favorite: false, dontKnow: false },
+      { jp: "七つ (ななつ)", tr: "yedi şey", favorite: false, dontKnow: false },
+      { jp: "何 (なに) (ナン)", tr: "ne", favorite: false, dontKnow: false },
+      { jp: "七日（なのか）", tr: "yedi gün; ayın yedinci günü", favorite: false, dontKnow: false },
+      { jp: "並べる (ならべる)", tr: "sıraya girmek, sıraya dizilmek", favorite: false, dontKnow: false },
+      { jp: "習う (ならう)", tr: "(birisinden) öğrenmek, öğretilmek", favorite: false, dontKnow: false },
+      { jp: "夏 (なつ)", tr: "yaz (mevsim)", favorite: false, dontKnow: false },
+      { jp: "夏休み（なつやすみ）", tr: "yaz tatili", favorite: false, dontKnow: false },
+      { jp: "猫（ねこ）", tr: "kedi", favorite: false, dontKnow: false },
+      { jp: "ネクタイ", tr: "kıravat", favorite: false, dontKnow: false },
+      { jp: "寝る (ねる)", tr: "yatmak; uyumak", favorite: false, dontKnow: false },
+      { jp: "二 (に)", tr: "2", favorite: false, dontKnow: false },
+      { jp: "日曜日 (にちようび)", tr: "pazar", favorite: false, dontKnow: false },
+      { jp: "賑やか (にぎやか)", tr: "kalabalık, gürültülü, hareketli, canlı", favorite: false, dontKnow: false },
+      { jp: "肉 (にく)", tr: "et", favorite: false, dontKnow: false },
+      { jp: "荷物（にもつ）", tr: "bagaj, yük", favorite: false, dontKnow: false },
+      { jp: "西 (にし) (サイ)", tr: "batı", favorite: false, dontKnow: false },
+      { jp: "庭 (にわ)", tr: "bahçe", favorite: false, dontKnow: false },
+      { jp: "登る（のぼる）", tr: "tırmanmak", favorite: false, dontKnow: false },
+      { jp: "飲み物（のみもの）", tr: "içecek", favorite: false, dontKnow: false },
+      { jp: "飲む (のむ)", tr: "içmek, yutmak, tüttürmek", favorite: false, dontKnow: false },
+      { jp: "ノート", tr: "defter", favorite: false, dontKnow: false },
+      { jp: "乗る (のる)", tr: "sürmek, binmek", favorite: false, dontKnow: false },
+      { jp: "脱ぐ（ぬぐ）", tr: "çıkarmak (soyunmak)", favorite: false, dontKnow: false },
+      { jp: "ニュース", tr: "haberler", favorite: false, dontKnow: false },
+      { jp: "おばあさん", tr: "büyükanne; yaşlı kadın", favorite: false, dontKnow: false },
+      { jp: "おばさん", tr: "teyze, hala; yaşlı bayan", favorite: false, dontKnow: false },
+      { jp: "お弁当 (おべんとう)", tr: "yemek kutusu (yolluk)", favorite: false, dontKnow: false },
+      { jp: "お茶 (おちゃ)", tr: "çay; yeşil çay", favorite: false, dontKnow: false },
+      { jp: "お風呂 (おふろ)", tr: "banyo", favorite: false, dontKnow: false },
+      { jp: "美味しい (おいしい)", tr: "lezzetli", favorite: false, dontKnow: false },
+      { jp: "おじさん", tr: "amca, dayı", favorite: false, dontKnow: false },
+      { jp: "お母さん (おかあさん)", tr: "anne (başkasının)", favorite: false, dontKnow: false },
+      { jp: "お金 (おかね)", tr: "para", favorite: false, dontKnow: false },
+      { jp: "お菓子（おかし）", tr: "tatlı, abur cubur", favorite: false, dontKnow: false },
+      { jp: "起きる (おきる)", tr: "kalkmak, uyanmak", favorite: false, dontKnow: false },
+      { jp: "奥さん（おくさん）", tr: "kadın eş", favorite: false, dontKnow: false },
+      { jp: "面白い（おもしろい）", tr: "ilginç; eğlenceli; komik", favorite: false, dontKnow: false },
+      { jp: "お腹 (おなか)", tr: "mide, karın, göbek", favorite: false, dontKnow: false },
+      { jp: "お姉さん（おねえさん）", tr: "abla; bayan, hanımefendi", favorite: false, dontKnow: false },
+      { jp: "音楽 (おんがく)", tr: "müzik", favorite: false, dontKnow: false },
+      { jp: "お兄さん (おにいさん)", tr: "abi; genç adam", favorite: false, dontKnow: false },
+      { jp: "女 (おんな) (ジョ)", tr: "kadın", favorite: false, dontKnow: false },
+      { jp: "女の子 (おんなのこ)", tr: "kız çocuk, genç kız", favorite: false, dontKnow: false },
+      { jp: "大きい (おおきい)", tr: "büyük, kocaman", favorite: false, dontKnow: false },
+      { jp: "大きな (おおきな)", tr: "büyük, kocaman", favorite: false, dontKnow: false },
+      { jp: "降りる (おりる)", tr: "inmek", favorite: false, dontKnow: false },
+      { jp: "お酒（おさけ）", tr: "içki, Sake", favorite: false, dontKnow: false },
+      { jp: "皿 (さら) (ザラ)", tr: "tabak", favorite: false, dontKnow: false },
+      { jp: "教える (おしえる)", tr: "öğretmek; anlatmak", favorite: false, dontKnow: false },
+      { jp: "押す (おす)", tr: "basmak; itmek", favorite: false, dontKnow: false },
+      { jp: "お手洗い (おてあらい)", tr: "lavabo", favorite: false, dontKnow: false },
+      { jp: "男 (おとこ) (ダン)", tr: "erkek", favorite: false, dontKnow: false },
+      { jp: "男の子 (おとこのこ)", tr: "erkek çocuk, genç erkek", favorite: false, dontKnow: false },
+      { jp: "大人 (おとな)", tr: "yetişkin", favorite: false, dontKnow: false },
+      { jp: "一昨日（おととい）", tr: "dünden önceki gün", favorite: false, dontKnow: false },
+      { jp: "お父さん（おとうさん）", tr: "baba", favorite: false, dontKnow: false },
+      { jp: "弟 (おとうと)", tr: "küçük erkek kardeş", favorite: false, dontKnow: false },
+      { jp: "終わる（おわる）", tr: "bitmek", favorite: false, dontKnow: false },
+      { jp: "泳ぐ (およぐ)", tr: "yüzmek; kalabalık içerisinden geçerken zorlanmak", favorite: false, dontKnow: false },
+      { jp: "パーティー", tr: "parti", favorite: false, dontKnow: false },
+      { jp: "パン", tr: "ekmek", favorite: false, dontKnow: false },
+      { jp: "ペン", tr: "kalem", favorite: false, dontKnow: false },
+      { jp: "ペット", tr: "evcil hayvan", favorite: false, dontKnow: false },
+      { jp: "ポケット", tr: "cep", favorite: false, dontKnow: false },
+      { jp: "ポスト", tr: "posta; posta klasörü", favorite: false, dontKnow: false },
+      { jp: "プール", tr: "havuz", favorite: false, dontKnow: false },
+      { jp: "来月（らいげつ）", tr: "gelecek ay", favorite: false, dontKnow: false },
+      { jp: "来年 (らいねん)", tr: "gelecek yıl", favorite: false, dontKnow: false },
+      { jp: "来週（らいしゅう）", tr: "gelecek hafta", favorite: false, dontKnow: false },
+      { jp: "ラジオ", tr: "radyo", favorite: false, dontKnow: false },
+      { jp: "冷蔵庫（れいぞうこ）", tr: "buzdolabı", favorite: false, dontKnow: false },
+      { jp: "レコード", tr: "plak; kayıt", favorite: false, dontKnow: false },
+      { jp: "練習 (れんしゅう)", tr: "pratik; alıştırma; egzersiz", favorite: false, dontKnow: false },
+      { jp: "レストラン", tr: "restoran", favorite: false, dontKnow: false },
+      { jp: "六 (ろく)", tr: "6", favorite: false, dontKnow: false },
+      { jp: "旅行 (りょこう)", tr: "seyahat, gezi", favorite: false, dontKnow: false },
+      { jp: "料理 (りょうり)", tr: "yemek (yiyecek anlamında), yemek yapma", favorite: false, dontKnow: false },
+      { jp: "留学生（りゅうがくせい）", tr: "yabancı öğrenci, yurtdışında öğrenim gören öğrenci", favorite: false, dontKnow: false },
+      { jp: "さあ", tr: "hadi; eee / well; so", favorite: false, dontKnow: false },
+      { jp: "財布（さいふ）", tr: "cüzdan", favorite: false, dontKnow: false },
+      { jp: "魚 (さかな) (ギョ) (ウオ)", tr: "balık", favorite: false, dontKnow: false },
+      { jp: "寒い (さむい)", tr: "soğuk (hava)", favorite: false, dontKnow: false },
+      { jp: "三 (さん)", tr: "3", favorite: false, dontKnow: false },
+      { jp: "散歩 (さんぽ)", tr: "yürüyüş", favorite: false, dontKnow: false },
+      { jp: "砂糖（さとう）", tr: "şeker", favorite: false, dontKnow: false },
+      { jp: "セーター", tr: "kazak, süveter; yelek", favorite: false, dontKnow: false },
+      { jp: "石鹸 (せっけん)", tr: "sabun", favorite: false, dontKnow: false },
+      { jp: "狭い (せまい)", tr: "dar", favorite: false, dontKnow: false },
+      { jp: "千 (せん)", tr: "1000", favorite: false, dontKnow: false },
+      { jp: "先月（せんげつ）", tr: "geçen ay", favorite: false, dontKnow: false },
+      { jp: "先生 (せんせい)", tr: "öğretmen; usta; doktor; avukat vb.", favorite: false, dontKnow: false },
+      { jp: "先週（せんしゅう）", tr: "geçen hafta", favorite: false, dontKnow: false },
+      { jp: "洗濯 (せんたく)", tr: "(çamaşır) yıkamak", favorite: false, dontKnow: false },
+      { jp: "写真 (しゃしん)", tr: "fotoğraf", favorite: false, dontKnow: false },
+      { jp: "シャツ", tr: "gömlek", favorite: false, dontKnow: false },
+      { jp: "シャワー", tr: "duş", favorite: false, dontKnow: false },
+      { jp: "四 (し/よん)", tr: "4", favorite: false, dontKnow: false },
+      { jp: "七 (しち/なな)", tr: "7", favorite: false, dontKnow: false },
+      { jp: "仕事 (しごと)", tr: "iş", favorite: false, dontKnow: false },
+      { jp: "閉まる（しまる）", tr: "kapanmak (otomatik)", favorite: false, dontKnow: false },
+      { jp: "閉める (しめる)", tr: "kapatmak (manuel)", favorite: false, dontKnow: false },
+      { jp: "締める（しめる）", tr: "bağlamak, sıkmak", favorite: false, dontKnow: false },
+      { jp: "新聞 (しんぶん)", tr: "gazete", favorite: false, dontKnow: false },
+      { jp: "死ぬ (しぬ)", tr: "ölmek", favorite: false, dontKnow: false },
+      { jp: "塩 (しお)", tr: "tuz", favorite: false, dontKnow: false },
+      { jp: "白 (しろ)", tr: "beyaz; masum", favorite: false, dontKnow: false },
+      { jp: "白い (しろい)", tr: "beyaz", favorite: false, dontKnow: false },
+      { jp: "知る (しる)", tr: "bilmek", favorite: false, dontKnow: false },
+      { jp: "下 (した) (カ)", tr: "alt, aşağı, altında", favorite: false, dontKnow: false },
+      { jp: "質問 (しつもん)", tr: "soru", favorite: false, dontKnow: false },
+      { jp: "静か (しずか)", tr: "sessiz, sakin", favorite: false, dontKnow: false },
+      { jp: "食堂 (しょくどう)", tr: "yemekhane, kafeterya", favorite: false, dontKnow: false },
+      { jp: "醬油（しょうゆ）", tr: "soya sosu", favorite: false, dontKnow: false },
+      { jp: "宿題（しゅくだい）", tr: "ödev", favorite: false, dontKnow: false },
+      { jp: "そば", tr: "yan, yakın, çevre", favorite: false, dontKnow: false },
+      { jp: "そっち", tr: "şu taraf (günlük)", favorite: false, dontKnow: false },
+      { jp: "そちら", tr: "şu taraf (resmi)", favorite: false, dontKnow: false },
+      { jp: "そこ", tr: "şurada", favorite: false, dontKnow: false },
+      { jp: "その", tr: "şu", favorite: false, dontKnow: false },
+      { jp: "空 (そら) (カラ) (クウ) (うつほ)", tr: "gökyüzü; boşluk", favorite: false, dontKnow: false },
+      { jp: "それ", tr: "şu", favorite: false, dontKnow: false },
+      { jp: "それでは", tr: "bu durumda", favorite: false, dontKnow: false },
+      { jp: "外 (そと)", tr: "dışarı", favorite: false, dontKnow: false },
+      { jp: "掃除 (そうじ)", tr: "temizlik; silip süpürme", favorite: false, dontKnow: false },
+      { jp: "直ぐ （すぐ）", tr: "hemen, çabuk", favorite: false, dontKnow: false },
+      { jp: "水曜日 (すいようび)", tr: "Çarşamba", favorite: false, dontKnow: false },
+      { jp: "スカート", tr: "etek", favorite: false, dontKnow: false },
+      { jp: "好き (すき) (コウ)", tr: "sevmek, hoşlanmak", favorite: false, dontKnow: false },
+      { jp: "少し (すこし)", tr: "biraz", favorite: false, dontKnow: false },
+      { jp: "少ない（すくない）", tr: "birkaç, az", favorite: false, dontKnow: false },
+      { jp: "住む (すむ)", tr: "(bir yerde) yaşamak", favorite: false, dontKnow: false },
+      { jp: "スポーツ", tr: "spor", favorite: false, dontKnow: false },
+      { jp: "スプーン", tr: "kaşık", favorite: false, dontKnow: false },
+      { jp: "スリッパ", tr: "terlik", favorite: false, dontKnow: false },
+      { jp: "ストーブ", tr: "soba; ısıtıcı", favorite: false, dontKnow: false },
+      { jp: "吸う (すう)", tr: "tüttürmek (sigara); emmek; içine çekmek, nefes almak", favorite: false, dontKnow: false },
+      { jp: "座る (すわる) (ザ)", tr: "oturmak", favorite: false, dontKnow: false },
+      { jp: "涼しい（すずしい）", tr: "serin (hava)", favorite: false, dontKnow: false },
+      { jp: "煙草 (たばこ)", tr: "tütün sigara", favorite: false, dontKnow: false },
+      { jp: "食べ物 （たべもの）", tr: "yiyecek", favorite: false, dontKnow: false },
+      { jp: "食べる (たべる)", tr: "yemek (eylem olarak)", favorite: false, dontKnow: false },
+      { jp: "多分 (たぶん)", tr: "muhtemelen; belki, galiba; çok", favorite: false, dontKnow: false },
+      { jp: "大変 (たいへん)", tr: "çok, pek; zor (iş)", favorite: false, dontKnow: false },
+      { jp: "大切 (たいせつ)", tr: "önemli, değerli", favorite: false, dontKnow: false },
+      { jp: "大使館 （たいしかん）", tr: "büyükelçilik", favorite: false, dontKnow: false },
+      { jp: "高い (たかい)", tr: "yüksek; pahalı", favorite: false, dontKnow: false },
+      { jp: "沢山 （たくさん）", tr: "çok", favorite: false, dontKnow: false },
+      { jp: "タクシー", tr: "taksi", favorite: false, dontKnow: false },
+      { jp: "卵 (たまご)", tr: "yumurta", favorite: false, dontKnow: false },
+      { jp: "誕生日 （たんじょうび）", tr: "doğum günü", favorite: false, dontKnow: false },
+      { jp: "頼む （たのむ）", tr: "rica etmek (istemek); güvenmek", favorite: false, dontKnow: false },
+      { jp: "楽しい (たのしい)", tr: "eğlenceli", favorite: false, dontKnow: false },
+      { jp: "縦 (たて)", tr: "yükseklik; uzunluk", favorite: false, dontKnow: false },
+      { jp: "建物 （たてもの）", tr: "bina", favorite: false, dontKnow: false },
+      { jp: "立つ (たつ)", tr: "ayağa kalkmak; ayakta durmak; çok fazla anlamı var", favorite: false, dontKnow: false },
+      { jp: "手 (て) (シュ)", tr: "el; kol", favorite: false, dontKnow: false },
+      { jp: "テーブル", tr: "masa", favorite: false, dontKnow: false },
+      { jp: "テープ", tr: "bant, selobant", favorite: false, dontKnow: false },
+      { jp: "テープレコーダー", tr: "teyp kaydedici; kasetçalar", favorite: false, dontKnow: false },
+      { jp: "手紙 (てがみ)", tr: "mektup", favorite: false, dontKnow: false },
+      { jp: "天気 (てんき)", tr: "hava", favorite: false, dontKnow: false },
+      { jp: "テレビ", tr: "televizyon", favorite: false, dontKnow: false },
+      { jp: "テスト", tr: "test, sınav", favorite: false, dontKnow: false },
+      { jp: "戸 (と)", tr: "kapı (Japon tarzı kapı)", favorite: false, dontKnow: false },
+      { jp: "飛ぶ （とぶ）", tr: "uçmak; zıplamak, atlamak", favorite: false, dontKnow: false },
+      { jp: "トイレ", tr: "tuvalet", favorite: false, dontKnow: false },
+      { jp: "時計 (とけい)", tr: "saat", favorite: false, dontKnow: false },
+      { jp: "時 (じ) (とき)", tr: "saat; zaman", favorite: false, dontKnow: false },
+      { jp: "時々 (ときどき)", tr: "bazen", favorite: false, dontKnow: false },
+      { jp: "所 (ところ)", tr: "yer, adres, mevki", favorite: false, dontKnow: false },
+      { jp: "止まる （とまる）", tr: "durmak", favorite: false, dontKnow: false },
+      { jp: "友達 (ともだち)", tr: "arkadaş, dost", favorite: false, dontKnow: false },
+      { jp: "隣 (となり)", tr: "yanında; komşu", favorite: false, dontKnow: false },
+      { jp: "遠い (とおい)", tr: "uzak", favorite: false, dontKnow: false },
+      { jp: "十日 （とおか）", tr: "ayın 10. günü; 10 gün", favorite: false, dontKnow: false },
+      { jp: "鳥 (とり)", tr: "kuş", favorite: false, dontKnow: false },
+      { jp: "鶏肉 (とりにく)", tr: "tavuk eti", favorite: false, dontKnow: false },
+      { jp: "取る (とる)", tr: "Kısaca YAPMAK / almak; tutmak; açmak; çıkarmak (çok fazla anlamı var)", favorite: false, dontKnow: false },
+      { jp: "撮る (とる)", tr: "fotoğraf çekmek; video veya ses kaydetmek", favorite: false, dontKnow: false },
+      { jp: "年 (ねん) (トシ)", tr: "yıl", favorite: false, dontKnow: false },
+      { jp: "図書館 （としょかん）", tr: "kütüphane", favorite: false, dontKnow: false },
+      { jp: "次 (つぎ)", tr: "sonraki", favorite: false, dontKnow: false },
+      { jp: "疲れる （つかれる）", tr: "yorgun olmak", favorite: false, dontKnow: false },
+      { jp: "使う (つかう)", tr: "kullanmak", favorite: false, dontKnow: false },
+      { jp: "つける", tr: "Kısaca YAPMAK / açmak (elektronik cihazlar için); takmak, yerleştirmek, eklemek; batırmak, daldırmak; isim koymak, adlandırmak; izlemek, takip etmek; işaret koymak; uygulamak, sürmek", favorite: false, dontKnow: false },
+      { jp: "着く (つく)", tr: "varmak, ulaşmak", favorite: false, dontKnow: false },
+      { jp: "机 (つくえ)", tr: "çalışma masası", favorite: false, dontKnow: false },
+      { jp: "作る (つくる)", tr: "yapmak; inşa etmek; üretmek", favorite: false, dontKnow: false },
+      { jp: "詰まらない （つまらない）", tr: "sıkıcı", favorite: false, dontKnow: false },
+      { jp: "冷たい （つめたい）", tr: "soğuk (şeyler/insanlar)", favorite: false, dontKnow: false },
+      { jp: "勤める （つとめる）", tr: "(birisi için) çalışmak; hizmet etmek", favorite: false, dontKnow: false },
+      { jp: "強い (つよい)", tr: "güçlü", favorite: false, dontKnow: false },
+      { jp: "上 (うえ) (ジョウ)", tr: "üst, yukarı", favorite: false, dontKnow: false },
+      { jp: "生まれる （うまれる）", tr: "doğmak", favorite: false, dontKnow: false },
+      { jp: "海 (うみ) (カイ)", tr: "deniz; okyanus", favorite: false, dontKnow: false },
+      { jp: "売る (うる)", tr: "satmak", favorite: false, dontKnow: false },
+      { jp: "煩い （うるさい）", tr: "gürültülü, sinir bozucu", favorite: false, dontKnow: false },
+      { jp: "後ろ (うしろ)", tr: "geri, arka", favorite: false, dontKnow: false },
+      { jp: "薄い （うすい）", tr: "(objeler için) ince; zayıf, hafif; soluk; seyrek", favorite: false, dontKnow: false },
+      { jp: "歌 (うた)", tr: "şarkı; şarkı söylemek", favorite: false, dontKnow: false },
+      { jp: "歌う (うたう)", tr: "şarkı söyleme", favorite: false, dontKnow: false },
+      { jp: "上着 (うわぎ)", tr: "palto; ceket", favorite: false, dontKnow: false },
+      { jp: "ワイシャツ", tr: "beyaz gömlek", favorite: false, dontKnow: false },
+      { jp: "若い (わかい)", tr: "genç", favorite: false, dontKnow: false },
+      { jp: "分かる (わかる)", tr: "anlamak", favorite: false, dontKnow: false },
+      { jp: "悪い (わるい)", tr: "kötü", favorite: false, dontKnow: false },
+      { jp: "忘れる (わすれる)", tr: "unutmak", favorite: false, dontKnow: false },
+      { jp: "渡る (わたる)", tr: "karşıdan karşıya geçmek", favorite: false, dontKnow: false },
+      { jp: "私 (わたし) (シ) (bir sürü farklı okunuşu var)", tr: "ben", favorite: false, dontKnow: false },
+      { jp: "渡す (わたす)", tr: "ulaştırmak; geçirmek; teslim etmek (bir şeyi bir yerden bir yere götürmek anlamında)", favorite: false, dontKnow: false },
+      { jp: "山 (やま)", tr: "dağ", favorite: false, dontKnow: false },
+            { jp: "八百屋 （やおや）", tr: "manav", favorite: false, dontKnow: false },
+      { jp: "遣る (やる)", tr: "yapmak, gerçekleştirmek", favorite: false, dontKnow: false },
+      { jp: "野菜 (やさい)", tr: "sebze", favorite: false, dontKnow: false },
+      { jp: "易しい （やさしい）", tr: "kolay", favorite: false, dontKnow: false },
+      { jp: "安い (やすい)", tr: "ucuz; sakin, sessiz", favorite: false, dontKnow: false },
+      { jp: "休み (やすみ)", tr: "izin günü; tatil", favorite: false, dontKnow: false },
+      { jp: "休む (やすむ)", tr: "izin almak; dinlenmek; uyumaya gitmek", favorite: false, dontKnow: false },
+      { jp: "八つ (やっつ)", tr: "8 şey", favorite: false, dontKnow: false },
+      { jp: "呼ぶ (よぶ)", tr: "çağırmak, davet etmek", favorite: false, dontKnow: false },
+      { jp: "良い (よい/いい)", tr: "iyi", favorite: false, dontKnow: false },
+      { jp: "四日 （よっか）", tr: "ayın 4. günü; 4 gün", favorite: false, dontKnow: false },
+      { jp: "横 (よこ)", tr: "yatay (horizontal); yan; yanyana", favorite: false, dontKnow: false },
+      { jp: "よく", tr: "sıklıkla; iyice", favorite: false, dontKnow: false },
+      { jp: "読む (よむ)", tr: "okumak", favorite: false, dontKnow: false },
+      { jp: "夜 (よる) (ヨ) (ヤ)", tr: "akşam; gece", favorite: false, dontKnow: false },
+      { jp: "四つ (よっつ)", tr: "4 şey", favorite: false, dontKnow: false },
+      { jp: "洋服 （ようふく）", tr: "batı tipi kıyafetler", favorite: false, dontKnow: false },
+      { jp: "八日 （ようか）", tr: "ayın sekizinci günü; sekiz gün", favorite: false, dontKnow: false },
+      { jp: "弱い (よわい)", tr: "zayıf, güçsüz", favorite: false, dontKnow: false },
+      { jp: "雪 (ゆき)", tr: "kar", favorite: false, dontKnow: false },
+      { jp: "ゆっくり", tr: "yavaşça", favorite: false, dontKnow: false },
+      { jp: "昨夜 (さくや) (ユウベ)", tr: "dün gece; dün akşam", favorite: false, dontKnow: false },
+      { jp: "郵便局 （ゆうびんきょく）", tr: "postahane", favorite: false, dontKnow: false },
+      { jp: "夕方 （ゆうがた）", tr: "ikindi", favorite: false, dontKnow: false },
+      { jp: "夕飯 (ゆうはん)", tr: "akşam yemeği", favorite: false, dontKnow: false },
+      { jp: "有名 (ゆうめい)", tr: "ünlü, meşhur", favorite: false, dontKnow: false },
+      { jp: "雑誌 (ざっし)", tr: "dergi", favorite: false, dontKnow: false },
+      { jp: "全部 (ぜんぶ)", tr: "hepsi, tümü", favorite: false, dontKnow: false },
+      { jp: "ゼロ", tr: "0", favorite: false, dontKnow: false },
+      { jp: "ズボン", tr: "pantalon", favorite: false, dontKnow: false },
+      { jp: "会計 (かいけい)", tr: "muhasebe; hesaplama; ödeme", favorite: false, dontKnow: false },
+      { jp: "あのう", tr: "hmm-", favorite: false, dontKnow: false },
+      { jp: "僕 (ぼく)", tr: "ben (hafif eril)", favorite: false, dontKnow: false },
+      { jp: "中国人 (ちゅうごくじん)", tr: "Çinli", favorite: false, dontKnow: false },
+      { jp: "大学生 (だいがくせい)", tr: "üniversite öğrencisi", favorite: false, dontKnow: false },
+      { jp: "ドイツ", tr: "Almanya", favorite: false, dontKnow: false },
+      { jp: "初めまして（はじめまして）", tr: "tanıştığımıza/buluştuğumuza memnun oldum", favorite: false, dontKnow: false },
+      { jp: "イギリス", tr: "Birleşik Krallık; İngiltere", favorite: false, dontKnow: false },
+      { jp: "いいえ", tr: "önemli değil; hayır", favorite: false, dontKnow: false },
+      { jp: "会社員（かいしゃいん）", tr: "şirket çalışanı", favorite: false, dontKnow: false },
+      { jp: "高校生 (こうこうせい)", tr: "lise öğrencisi", favorite: false, dontKnow: false },
+      { jp: "日本人 (にほんじん)", tr: "Japon", favorite: false, dontKnow: false },
+      { jp: "お名前は？(おなまえは？)", tr: "adınız ne?", favorite: false, dontKnow: false },
+      { jp: "俺 (おれ)", tr: "ben (fazlasıyla eril)", favorite: false, dontKnow: false },
+      { jp: "そうですね", tr: "bu doğru; bir düşüneyim", favorite: false, dontKnow: false },
+      { jp: "すみません", tr: "pardon; affedersiniz", favorite: false, dontKnow: false },
+      { jp: "挨拶 (あいさつ)", tr: "selamlamalar", favorite: false, dontKnow: false },
+      { jp: "上がる (あがる)", tr: "girmek, yükselmek, yukarı çıkmak", favorite: false, dontKnow: false },
+      { jp: "味 (あじ)", tr: "aroma; tat", favorite: false, dontKnow: false },
+      { jp: "預かる", tr: "sahip çıkmak; emaneten almak", favorite: false, dontKnow: false },
+      { jp: "温める (あたためる)", tr: "ısıtmak", favorite: false, dontKnow: false },
+      { jp: "集める (あつめる)", tr: "toplamak", favorite: false, dontKnow: false },
+      { jp: "油っこい（あぶらっこい）", tr: "yağlı", favorite: false, dontKnow: false },
+      { jp: "安全 (あんぜん)", tr: "güvenli", favorite: false, dontKnow: false },
+      { jp: "案内 (あんない)", tr: "rehberlik", favorite: false, dontKnow: false },
+      { jp: "以下 (いか)", tr: "-den aşağı, -den az", favorite: false, dontKnow: false },
+      { jp: "以上 (いじょう)", tr: "-den yukarı, -den fazla", favorite: false, dontKnow: false },
+      { jp: "急ぐ (いそぐ)", tr: "acele etmek", favorite: false, dontKnow: false },
+      { jp: "致す (いたす)", tr: "yapmak, etmek (kibarca)", favorite: false, dontKnow: false },
+      { jp: "いただきます", tr: "yemeden önce kullanılan ifade", favorite: false, dontKnow: false },
+      { jp: "苺 (いちご)", tr: "çilek", favorite: false, dontKnow: false },
+      { jp: "一歳 (いっさい)", tr: "1 yaşında", favorite: false, dontKnow: false },
+      { jp: "行って来ます (いってきます)", tr: "evden ayrılırken kullanılan ifade", favorite: false, dontKnow: false },
+      { jp: "行ってらっしゃい (いってらっしゃい)", tr: "birisini uğurlarken kullanılan ifade", favorite: false, dontKnow: false },
+      { jp: "何時も（いつも）", tr: "daima, her zaman", favorite: false, dontKnow: false },
+      { jp: "いとこ", tr: "kuzen", favorite: false, dontKnow: false },
+      { jp: "田舎 (いなか)", tr: "kırsal alan", favorite: false, dontKnow: false },
+      { jp: "苛々 (いらいら)", tr: "sinirli olmak", favorite: false, dontKnow: false },
+      { jp: "いらっしゃいませ", tr: "hoş geldiniz (resmi)", favorite: false, dontKnow: false },
+      { jp: "いらっしゃる", tr: "var olmak; gitmek; gelmek (resmi)", favorite: false, dontKnow: false },
+      { jp: "売り切れる（うりきれる）", tr: "tükenmek", favorite: false, dontKnow: false },
+      { jp: "嬉しい (うれしい)", tr: "mutlu, memnun", favorite: false, dontKnow: false },
+      { jp: "運動 (うんどう)", tr: "egzersiz", favorite: false, dontKnow: false },
+      { jp: "絵 (え)", tr: "resim, çizim; resim yapmak, çizim yapmak", favorite: false, dontKnow: false },
+      { jp: "お祝い（おいわい）", tr: "kutlama, tebrik; tebrik hediyesi", favorite: false, dontKnow: false },
+      { jp: "応募 (おうぼ)", tr: "başvuru", favorite: false, dontKnow: false },
+      { jp: "大きさ（おおきさ）", tr: "büyüklük, boyut", favorite: false, dontKnow: false },
+      { jp: "お返し（おかえし）", tr: "(hediye, iyilik) geri verme, iade etme; alışveriş sonrası arta kalan para iadesi", favorite: false, dontKnow: false },
+      { jp: "お代わり (おかわり)", tr: "başka bir porsiyon; yeniden doldurma", favorite: false, dontKnow: false },
+      { jp: "お気に入り（おきにいり）", tr: "favori", favorite: false, dontKnow: false },
+      { jp: "置き場 (おきば)", tr: "depolama alanı", favorite: false, dontKnow: false },
+      { jp: "送る (おくる)", tr: "göndermek", favorite: false, dontKnow: false },
+      { jp: "遅れる (おくれる)", tr: "geç kalmak", favorite: false, dontKnow: false },
+      { jp: "お越しになる (おこしになる)", tr: "gelmek, gitmek (resmi)", favorite: false, dontKnow: false },
+      { jp: "惜しい（おしい）", tr: "yazık, maalesef; değerli; neredeyse, yakındı", favorite: false, dontKnow: false },
+      { jp: "お祖父さん (おじいさん)", tr: "(başkasının) dede(si)", favorite: false, dontKnow: false },
+      { jp: "お葬式 (おそうしき)", tr: "cenaze", favorite: false, dontKnow: false },
+      { jp: "おめでとう", tr: "tebrikler", favorite: false, dontKnow: false },
+      { jp: "お大事に (おだいじに)", tr: "kendine dikkat et; geçmiş olsun", favorite: false, dontKnow: false },
+      { jp: "夫 (おっと)", tr: "(benim) koca(m)", favorite: false, dontKnow: false },
+      { jp: "お疲れ様 (おつかれさま)", tr: "sıkı çalışman için teşekkürler", favorite: false, dontKnow: false },
+      { jp: "お寺（おてら）", tr: "Budist tapınağı", favorite: false, dontKnow: false },
+      { jp: "男の人", tr: "adam", favorite: false, dontKnow: false },
+      { jp: "踊る（おどる）", tr: "dans etmek", favorite: false, dontKnow: false },
+      { jp: "墓 (はか)", tr: "mezar; mezar taşı", favorite: false, dontKnow: false },
+      { jp: "お祖母さん (おばあさん)", tr: "büyükanne; yaşlı kadın", favorite: false, dontKnow: false },
+      { jp: "お見舞い (おみまい)", tr: "hasta ziyareti; geçmiş olsun dileğiyle yollanan hediye", favorite: false, dontKnow: false },
+      { jp: "お土産 (おみやげ)", tr: "hediyelik eşya", favorite: false, dontKnow: false },
+      { jp: "思う (おもう)", tr: "düşünmek", favorite: false, dontKnow: false },
+      { jp: "重さ (おもさ)", tr: "ağırlık", favorite: false, dontKnow: false },
+      { jp: "おやすみ", tr: "tatil; uyumak, dinlenmek; iyi geceler", favorite: false, dontKnow: false },
+      { jp: "お休みになる（おやすみになる）", tr: "tatil; uyumak, dinlenmek; iyi geceler (saygılı biçim)", favorite: false, dontKnow: false },
+      { jp: "お礼 (おれい)", tr: "minnettarlık ifadesi; teşekkür hediyesi", favorite: false, dontKnow: false },
+      { jp: "温泉（おんせん）", tr: "kaplıca", favorite: false, dontKnow: false },
+      { jp: "女の人 (おんなのひと)", tr: "kadın", favorite: false, dontKnow: false },
+      { jp: "可 (か)", tr: "(bir şeye) izin verilir", favorite: false, dontKnow: false },
+      { jp: "階 (かい)", tr: "kat", favorite: false, dontKnow: false },
+      { jp: "海外 (かいがい)", tr: "deniz aşırı", favorite: false, dontKnow: false },
+      { jp: "かっこいい", tr: "yakışıklı; havalı", favorite: false, dontKnow: false },
+      { jp: "悲しい (かなしい)", tr: "üzgün, mutsuz", favorite: false, dontKnow: false },
+      { jp: "彼女 (かのじょ)", tr: "kız arkadaş; (kızlar için) o", favorite: false, dontKnow: false },
+      { jp: "歌舞伎（かぶき）", tr: "kabuki (Japon klasik tiyatrosu)", favorite: false, dontKnow: false },
+      { jp: "被る (かぶる)", tr: "takmak (başa)", favorite: false, dontKnow: false },
+      { jp: "髪 (かみ)", tr: "saç", favorite: false, dontKnow: false },
+      { jp: "通う (かよう)", tr: "(bir yerden bir yere) gidip gelmek", favorite: false, dontKnow: false },
+      { jp: "彼 (かれ)", tr: "(erkekler için) o; erkek arkadaş", favorite: false, dontKnow: false },
+      { jp: "彼氏 (かれし)", tr: "erkek arkadaş; (erkekler için) o", favorite: false, dontKnow: false },
+      { jp: "缶 (かん)", tr: "teneke kutu, konserve kutusu", favorite: false, dontKnow: false },
+      { jp: "観光 (かんこう)", tr: "turizm, seyahat", favorite: false, dontKnow: false },
+      { jp: "韓国 (かんこく)", tr: "Güney Kore", favorite: false, dontKnow: false },
+      { jp: "簡単 (かんたん)", tr: "kolay", favorite: false, dontKnow: false },
+      { jp: "学食 (がくしょく)", tr: "okul kafeteryası", favorite: false, dontKnow: false },
+      { jp: "頑張る (がんばる)", tr: "azimle çabalamak, gayret etmek, sıkı çalışmak", favorite: false, dontKnow: false },
+      { jp: "黄色 (きいろ)", tr: "sarı", favorite: false, dontKnow: false },
+      { jp: "気候（きこう）", tr: "iklim", favorite: false, dontKnow: false },
+      { jp: "季節 (きせつ)", tr: "mevsim", favorite: false, dontKnow: false },
+      { jp: "記念日（きねんび）", tr: "anma günü; yıl dönümü", favorite: false, dontKnow: false },
+      { jp: "決まる（きまる）", tr: "karar verilmek", favorite: false, dontKnow: false },
+      { jp: "決める (きめる)", tr: "karar vermek", favorite: false, dontKnow: false },
+      { jp: "客 (きゃく) (カク)", tr: "konuk, ziyaretçi; müşteri", favorite: false, dontKnow: false },
+      { jp: "九十 (きゅうじゅう)", tr: "90", favorite: false, dontKnow: false },
+      { jp: "求人 (きゅうじん)", tr: "iş ilanı", favorite: false, dontKnow: false },
+      { jp: "急に (きゅうに)", tr: "birden, aniden", favorite: false, dontKnow: false },
+      { jp: "給料 (きゅうりょう)", tr: "maaş", favorite: false, dontKnow: false },
+      { jp: "近所 (きんじょ)", tr: "mahalle", favorite: false, dontKnow: false },
+      { jp: "緊張 (きんちょう)", tr: "heyecan, stres, tansiyon, endişe, gerginlik", favorite: false, dontKnow: false },
+      { jp: "空港 (くうこう)", tr: "havaalanı", favorite: false, dontKnow: false },
+      { jp: "暮らす（くらす）", tr: "(hayat tarzı anlamında) yaşamak", favorite: false, dontKnow: false },
+      { jp: "具合 (ぐあい)", tr: "sağlık durumu, çalışma durumu (makineler için), hal, vaziyet, durum", favorite: false, dontKnow: false },
+      { jp: "計画 (けいかく)", tr: "plan, program", favorite: false, dontKnow: false },
+      { jp: "経験 (けいけん)", tr: "tecrübe", favorite: false, dontKnow: false },
+      { jp: "警察官 (けいさつかん)", tr: "polis memuru", favorite: false, dontKnow: false },
+      { jp: "携帯電話（けいたいでんわ）", tr: "cep telefonu", favorite: false, dontKnow: false },
+      { jp: "結婚式 (けっこんしき)", tr: "evlilik düğünü", favorite: false, dontKnow: false },
+      { jp: "欠席 (けっせき)", tr: "bulunmamak, katılmamak", favorite: false, dontKnow: false },
+      { jp: "喧嘩 (けんか)", tr: "kavga, tartışma", favorite: false, dontKnow: false },
+      { jp: "剣道 (けんどう)", tr: "kendo (bir tür dövüş sanatı)", favorite: false, dontKnow: false },
+      { jp: "月末 (げつまつ)", tr: "ay sonu", favorite: false, dontKnow: false },
+      { jp: "恋人 (こいびと)", tr: "sevgili", favorite: false, dontKnow: false },
+      { jp: "口座 (こうざ)", tr: "hesap; banka hesabı", favorite: false, dontKnow: false },
+      { jp: "胡椒 (こしょう)", tr: "toz biber", favorite: false, dontKnow: false },
+      { jp: "答え (こたえ)", tr: "cevap", favorite: false, dontKnow: false },
+      { jp: "骨折 (こっせつ)", tr: "kemik kırılması", favorite: false, dontKnow: false },
+      { jp: "断る（ことわる）", tr: "reddetmek", favorite: false, dontKnow: false },
+      { jp: "怖い (こわい)", tr: "korkunç", favorite: false, dontKnow: false },
+      { jp: "壊れる (こわれる)", tr: "kırılmak, yıkılmak, bozulmak", favorite: false, dontKnow: false },
+      { jp: "今度 (こんど)", tr: "bu sefer; gelecek sefer", favorite: false, dontKnow: false },
+      { jp: "後七時 (ごごしちじ)", tr: "öğleden sonra saat 7", favorite: false, dontKnow: false },
+      { jp: "午前十時半 (ごぜんじゅうじはん)", tr: "öğleden önce saat 10:30", favorite: false, dontKnow: false },
+      { jp: "午前六時（ごぜんろくじ）", tr: "öğleden önce saat 6", favorite: false, dontKnow: false },
+      { jp: "ご馳走さま (ごちそうさま)", tr: "yedikten sonra kullanılan günlük ifade", favorite: false, dontKnow: false },
+      { jp: "ごみ", tr: "çöp", favorite: false, dontKnow: false },
+      { jp: "ご覧になる（ごらんになる）", tr: "görmek; izlemek; bakmak (saygılı biçim)", favorite: false, dontKnow: false },
+      { jp: "ご主人（ごしゅじん）", tr: "(başkasının) koca(sı)", favorite: false, dontKnow: false },
+      { jp: "最近 (さいきん)", tr: "kısa süre önce; son zamanlarda", favorite: false, dontKnow: false },
+      { jp: "魚屋 (さかなや)", tr: "balık dükkanı", favorite: false, dontKnow: false },
+      { jp: "探す (さがす)", tr: "aramak", favorite: false, dontKnow: false },
+      { jp: "桜 (さくら)", tr: "kiraz çiçeği", favorite: false, dontKnow: false },
+      { jp: "さっき", tr: "kısa bir süre önce, daha yeni", favorite: false, dontKnow: false },
+      { jp: "茶道（さどう）", tr: "sado (Japon çay seremonisi)", favorite: false, dontKnow: false },
+      { jp: "様 (さま) (ヨウ)", tr: "ekstra kibarlık eki", favorite: false, dontKnow: false },
+      { jp: "三人 (さんにん)", tr: "üç (kişi)", favorite: false, dontKnow: false },
+      { jp: "残念 (ざんねん)", tr: "ne yazık; heves kırıcı, maalesef", favorite: false, dontKnow: false },
+      { jp: "塩辛い（しおからい）", tr: "tuzlu", favorite: false, dontKnow: false },
+      { jp: "仕方がない（しかたがない）", tr: "elden bir şey gelmez", favorite: false, dontKnow: false },
+      { jp: "試験 (しけん)", tr: "sınav", favorite: false, dontKnow: false },
+      { jp: "受ける (うける)", tr: "almak (örnek: hediye, övgü, izin, hizmet, eğitim, eleştiri); girmek (örnek: sınava); (zarar) görmek; (derse) katılmak", favorite: false, dontKnow: false },
+      { jp: "自然（しぜん）", tr: "doğa; doğal", favorite: false, dontKnow: false },
+      { jp: "下着 (したぎ)", tr: "iç çamaşırı", favorite: false, dontKnow: false },
+      { jp: "試着 (しちゃく)", tr: "kıyafet deneme", favorite: false, dontKnow: false },
+      { jp: "習慣（しゅうかん）", tr: "gelenek, görenek, örf, adet", favorite: false, dontKnow: false },
+      { jp: "就職 (しゅうしょく)", tr: "işe girme", favorite: false, dontKnow: false },
+      { jp: "週末 (しゅうまつ)", tr: "hafta sonu", favorite: false, dontKnow: false },
+      { jp: "手術 (しゅじゅつ)", tr: "ameliyat", favorite: false, dontKnow: false },
+      { jp: "出身 (しゅっしん)", tr: "nereli olduğun (ülke, şehir, aile, okul)", favorite: false, dontKnow: false },
+      { jp: "出席 (しゅっせき)", tr: "katılma, bulunma", favorite: false, dontKnow: false },
+      { jp: "趣味 (しゅみ)", tr: "hobi", favorite: false, dontKnow: false },
+      { jp: "少々 (しょうしょう)", tr: "biraz; sadece bir dakika", favorite: false, dontKnow: false },
+      { jp: "招待状（しょうたいじょう）", tr: "(yazılı) davetiye; davetiye mektubu", favorite: false, dontKnow: false },
+      { jp: "招待 (しょうたい)", tr: "davet", favorite: false, dontKnow: false },
+      { jp: "消費税 (しょうひぜい)", tr: "tüketim vergisi", favorite: false, dontKnow: false },
+      { jp: "しょうゆ", tr: "soya sosu", favorite: false, dontKnow: false },
+      { jp: "食事 (しょくじ)", tr: "yemek (gıda anlamında)", favorite: false, dontKnow: false },
+      { jp: "書道 (しょどう)", tr: "şodoo (Japon güzel yazı sanatı)", favorite: false, dontKnow: false },
+      { jp: "調べる (しらべる)", tr: "araştırmak, incelemek, gözden geçirmek", favorite: false, dontKnow: false },
+      { jp: "新幹線（しんかんせん）", tr: "hızlı tren", favorite: false, dontKnow: false },
+      { jp: "親戚 (しんせき)", tr: "akraba", favorite: false, dontKnow: false },
+      { jp: "親切 (しんせつ)", tr: "nazik", favorite: false, dontKnow: false },
+      { jp: "新鮮 (しんせん)", tr: "taze", favorite: false, dontKnow: false },
+      { jp: "身長 (しんちょう)", tr: "boy", favorite: false, dontKnow: false },
+      { jp: "心配 (しんぱい)", tr: "endişe, korku", favorite: false, dontKnow: false },
+      { jp: "字 (じ)", tr: "harf, karakter", favorite: false, dontKnow: false },
+      { jp: "実は (じつは)", tr: "doğruyu söylemek gerekirse, aslında", favorite: false, dontKnow: false },
+      { jp: "十一月（じゅういちがつ）", tr: "Kasım", favorite: false, dontKnow: false },
+      { jp: "十一時（じゅういちじ）", tr: "saat 11", favorite: false, dontKnow: false },
+      { jp: "充電器（じゅうでんき）", tr: "şarj aleti", favorite: false, dontKnow: false },
+      { jp: "十歳 (じゅっさい)", tr: "10 yaşında", favorite: false, dontKnow: false },
+      { jp: "準備 (じゅんび)", tr: "hazırlık", favorite: false, dontKnow: false },
+      { jp: "女性 (じょせい)", tr: "kadın", favorite: false, dontKnow: false },
+      { jp: "水道 (すいどう)", tr: "su şebekesi", favorite: false, dontKnow: false },
+      { jp: "凄い (すごい)", tr: "müthiş; dehşet verici", favorite: false, dontKnow: false },
+      { jp: "凄く (すごく)", tr: "çok (günlük)", favorite: false, dontKnow: false },
+      { jp: "すっかり", tr: "tamamen", favorite: false, dontKnow: false },
+      { jp: "酸っぱい（すっぱい）", tr: "ekşi", favorite: false, dontKnow: false },
+      { jp: "捨てる (すてる)", tr: "atmak", favorite: false, dontKnow: false },
+      { jp: "素晴らしい（すばらしい）", tr: "harika", favorite: false, dontKnow: false },
+      { jp: "する", tr: "yapmak", favorite: false, dontKnow: false },
+      { jp: "ずっと", tr: "daima, sürekli; uzun zaman boyunca", favorite: false, dontKnow: false },
+      { jp: "成績 (せいせき)", tr: "(öğrenci) not(u) ve başarı durumu", favorite: false, dontKnow: false },
+      { jp: "成長 (せいちょう)", tr: "büyüme, gelişme", favorite: false, dontKnow: false },
+      { jp: "世界 (せかい)", tr: "dünya", favorite: false, dontKnow: false },
+      { jp: "背中 (せなか)", tr: "sırt", favorite: false, dontKnow: false },
+      { jp: "選手 (せんしゅ)", tr: "sporcu", favorite: false, dontKnow: false },
+      { jp: "洗濯機（せんたくき）", tr: "çamaşır makinesi", favorite: false, dontKnow: false },
+            { jp: "絶対 (ぜったい)", tr: "kesinlikle", favorite: false, dontKnow: false },
+      { jp: "是非 (ぜひ)", tr: "kesinlikle", favorite: false, dontKnow: false },
+      { jp: "全然 (ぜんぜん)", tr: "hiç", favorite: false, dontKnow: false },
+      { jp: "寂しい（さびしい）", tr: "yalnız", favorite: false, dontKnow: false },
+      { jp: "掃除機（そうじき）", tr: "elektrik süpürgesi", favorite: false, dontKnow: false },
+      { jp: "相談 (そうだん)", tr: "danışmak, tavsiye istemek", favorite: false, dontKnow: false },
+      { jp: "相談に乗る（そうだんにのる）", tr: "tavsiye vermek", favorite: false, dontKnow: false },
+      { jp: "育てる（そだてる）", tr: "büyütmek, yetiştirmek; eğitmek", favorite: false, dontKnow: false },
+      { jp: "卒業 (そつぎょう)", tr: "mezuniyet", favorite: false, dontKnow: false },
+      { jp: "蕎麦 (そば)", tr: "soba (karabuğday eriştesi)", favorite: false, dontKnow: false },
+      { jp: "退院 (たいいん)", tr: "taburcu olma, hastaneden çıkma/çıkarılma", favorite: false, dontKnow: false },
+      { jp: "体重 (たいじゅう)", tr: "vücut ağırlığı, kilo", favorite: false, dontKnow: false },
+      { jp: "大切にする (たいせつにする)", tr: "önemsemek, büyük değer vermek; iyi bakmak", favorite: false, dontKnow: false },
+      { jp: "大抵 (たいてい)", tr: "genellikle", favorite: false, dontKnow: false },
+      { jp: "高さ (たかさ)", tr: "yükseklik", favorite: false, dontKnow: false },
+      { jp: "沢山（たくさん）", tr: "çok", favorite: false, dontKnow: false },
+      { jp: "確かめる（たしかめる）", tr: "teyit etmek, doğrulamak", favorite: false, dontKnow: false },
+      { jp: "畳 (たたみ)", tr: "tatami mat", favorite: false, dontKnow: false },
+      { jp: "建てる (たてる)", tr: "inşa etmek", favorite: false, dontKnow: false },
+      { jp: "棚 (たな)", tr: "raf", favorite: false, dontKnow: false },
+      { jp: "楽しみ (たのしみ)", tr: "keyif alma; sabırsızlıkla bekleme", favorite: false, dontKnow: false },
+      { jp: "楽しむ（たのしむ）", tr: "eğlenmek, keyif almak", favorite: false, dontKnow: false },
+      { jp: "足りる（たりる）", tr: "yeterli olmak", favorite: false, dontKnow: false },
+      { jp: "大嫌い (だいきらい)", tr: "nefret etmek", favorite: false, dontKnow: false },
+      { jp: "大分 (だいぶ)", tr: "çok", favorite: false, dontKnow: false },
+      { jp: "男性 (だんせい)", tr: "erkek", favorite: false, dontKnow: false },
+      { jp: "中国語（ちゅうごくご）", tr: "Çince", favorite: false, dontKnow: false },
+      { jp: "駐車場（ちゅうしゃじょう）", tr: "otopark", favorite: false, dontKnow: false },
+      { jp: "付き合う（つきあう）", tr: "ilişkisi olmak (herhangi bir ilişki, sevgili olmak zorunda değil.)", favorite: false, dontKnow: false },
+      { jp: "点く (つく)", tr: "açılmak, yanmak, yakmak, aydınlatmak (elektrikli eşya, aydınlatma, ateş gibi)", favorite: false, dontKnow: false },
+      { jp: "都合 (つごう)", tr: "uygunluk, koşullar, zamanlama, durum", favorite: false, dontKnow: false },
+      { jp: "伝える（つたえる）", tr: "söylemek, bildirmek", favorite: false, dontKnow: false },
+      { jp: "包む (つつむ)", tr: "sarmak, paketlemek", favorite: false, dontKnow: false },
+      { jp: "妻 (つま)", tr: "karım", favorite: false, dontKnow: false },
+      { jp: "連れていく (つれていく)", tr: "(canlı bir varlığı bir yere) götürmek", favorite: false, dontKnow: false },
+      { jp: "連れてくる (つれてくる)", tr: "(canlı bir varlığı bir yere) getirmek", favorite: false, dontKnow: false },
+      { jp: "定年 (ていねん)", tr: "emeklilik yaşı", favorite: false, dontKnow: false },
+      { jp: "手数料（てすうりょう）", tr: "komisyon", favorite: false, dontKnow: false },
+      { jp: "手伝う (てつだう)", tr: "yardım etmek", favorite: false, dontKnow: false },
+      { jp: "手土産 (てみやげ)", tr: "bir ziyaretçiden hediye", favorite: false, dontKnow: false },
+      { jp: "出来るだけ (できるだけ)", tr: "mümkün olduğunca", favorite: false, dontKnow: false },
+      { jp: "電子レンジ (でんしれんじ)", tr: "mikrodalga fırın", favorite: false, dontKnow: false },
+      { jp: "都会（とかい）", tr: "şehir", favorite: false, dontKnow: false },
+      { jp: "得意 (とくい)", tr: "bir konuda çok iyi olmak; kişinin güçlü bir yönü hakkında gurur duyması, övünmesi", favorite: false, dontKnow: false },
+      { jp: "特に (とくに)", tr: "özellikle, bilhassa", favorite: false, dontKnow: false },
+      { jp: "とても", tr: "çok", favorite: false, dontKnow: false },
+      { jp: "泊まる (とまる)", tr: "konaklamak, bir yerde kalmak", favorite: false, dontKnow: false },
+      { jp: "止める (とめる, やめる)", tr: "durmak, durdurmak", favorite: false, dontKnow: false },
+      { jp: "留める（とめる）", tr: "durdurmak, kapatmak; sabitlemek, tutturmak, bağlamak, sağlamlaştırmak", favorite: false, dontKnow: false },
+      { jp: "どうして", tr: "neden; nasıl", favorite: false, dontKnow: false },
+      { jp: "どうやって", tr: "ne şekilde, nasıl", favorite: false, dontKnow: false },
+      { jp: "どきどき", tr: "küt küt (kalbin küt küt atması)", favorite: false, dontKnow: false },
+      { jp: "どのくらい / どのぐらい", tr: "ne kadar", favorite: false, dontKnow: false },
+      { jp: "努力 (どりょく)", tr: "çaba, gayret", favorite: false, dontKnow: false },
+      { jp: "どんどん", tr: "gittikçe daha çok", favorite: false, dontKnow: false },
+      { jp: "直す (なおす)", tr: "onarmak, tamir etmek, düzeltmek, iyileştirmek", favorite: false, dontKnow: false },
+      { jp: "治る (なおる)", tr: "iyileşmek, sağlığına kavuşmak", favorite: false, dontKnow: false },
+      { jp: "なかなか", tr: "quite / oldukça (olumlu, olumsuz cümlelerde); kolay kolay (olumsuz cümlelerde); bir türlü (olumsuz cümlelerde)", favorite: false, dontKnow: false },
+      { jp: "泣く (なく)", tr: "ağlamak", favorite: false, dontKnow: false },
+      { jp: "亡くなる（なくなる）", tr: "vefat etmek", favorite: false, dontKnow: false },
+      { jp: "何色 (なにいろ)", tr: "ne renk", favorite: false, dontKnow: false },
+      { jp: "鍋パ (なべパ)", tr: "nabe partisi", favorite: false, dontKnow: false },
+      { jp: "鍋 (なべ)", tr: "tencere", favorite: false, dontKnow: false },
+      { jp: "名前をつける（なまえをつける）", tr: "ad vermek", favorite: false, dontKnow: false },
+      { jp: "なる", tr: "olmak, hâline gelmek", favorite: false, dontKnow: false },
+      { jp: "なんさい", tr: "kaç yaşındasın", favorite: false, dontKnow: false },
+      { jp: "何でも (なんでも)", tr: "herhangi bir şey", favorite: false, dontKnow: false },
+            { jp: "何でもない (なんでもない)", tr: "hiçbir şey / no problem", favorite: false, dontKnow: false },
+      { jp: "匂い (におい)", tr: "koku; aura", favorite: false, dontKnow: false },
+      { jp: "苦手 (にがて)", tr: "bir şeyde iyi olmamak; hoşlanmamak", favorite: false, dontKnow: false },
+      { jp: "肉屋 (にくや)", tr: "kasap, et dükkanı", favorite: false, dontKnow: false },
+      { jp: "にこにこ", tr: "gülümseme, tebessüm etme", favorite: false, dontKnow: false },
+      { jp: "について", tr: "hakkında", favorite: false, dontKnow: false },
+      { jp: "日本語 (にほんご)", tr: "Japonca", favorite: false, dontKnow: false },
+      { jp: "入院 (にゅういん)", tr: "hastaneye yatma/yatırılma", favorite: false, dontKnow: false },
+      { jp: "煮る（にる）", tr: "kaynatmak", favorite: false, dontKnow: false },
+      { jp: "願う（ねがう）", tr: "dilemek, ummak", favorite: false, dontKnow: false },
+      { jp: "眠い (ねむい)", tr: "uykulu", favorite: false, dontKnow: false },
+      { jp: "年金 (ねんきん)", tr: "emekli maaşı", favorite: false, dontKnow: false },
+      { jp: "年末 (ねんまつ)", tr: "yıl sonu", favorite: false, dontKnow: false },
+      { jp: "ので", tr: "çünkü, sebep olarak", favorite: false, dontKnow: false },
+      { jp: "乗り換える (のりかえる)", tr: "aktarma yapmak, araç değiştirmek", favorite: false, dontKnow: false },
+      { jp: "乗り物 (のりもの)", tr: "araç, vasıta", favorite: false, dontKnow: false },
+      { jp: "俳優 (はいゆう)", tr: "aktör", favorite: false, dontKnow: false },
+      { jp: "博物館（はくぶつかん）", tr: "müze", favorite: false, dontKnow: false },
+      { jp: "鋏 (はさみ)", tr: "makas", favorite: false, dontKnow: false },
+      { jp: "始める (はじめる)", tr: "başlamak", favorite: false, dontKnow: false },
+      { jp: "恥ずかしい（はずかしい）", tr: "utanç verici", favorite: false, dontKnow: false },
+      { jp: "八歳 (はっさい)", tr: "8 yaşında", favorite: false, dontKnow: false },
+      { jp: "発明 (はつめい)", tr: "icat", favorite: false, dontKnow: false },
+      { jp: "払う (はらう)", tr: "(para, fatura) ödemek", favorite: false, dontKnow: false },
+      { jp: "歯ブラシ (はブラシ)", tr: "diş fırçası", favorite: false, dontKnow: false },
+      { jp: "場所 (ばしょ)", tr: "mekan, yer", favorite: false, dontKnow: false },
+      { jp: "ばっちり", tr: "mükemmelce", favorite: false, dontKnow: false },
+      { jp: "引っ越す (ひっこす)", tr: "taşınmak", favorite: false, dontKnow: false },
+      { jp: "美容院（びよういん）", tr: "güzellik salonu; kuaför", favorite: false, dontKnow: false },
+      { jp: "びん", tr: "cam şişe veya kavanoz", favorite: false, dontKnow: false },
+      { jp: "ふくろ", tr: "torba, poşet, kese, çanta", favorite: false, dontKnow: false },
+      { jp: "二日酔い（ふつかよい）", tr: "hangover", favorite: false, dontKnow: false },
+      { jp: "船 (ふね)", tr: "gemi, bot", favorite: false, dontKnow: false },
+      { jp: "不便 (ふべん)", tr: "elverişsiz, zahmetli, uygunsuz, rahatsız", favorite: false, dontKnow: false },
+      { jp: "父母 (ふぼ)", tr: "baba ve anne", favorite: false, dontKnow: false },
+      { jp: "葡萄 (ぶどう)", tr: "üzüm", favorite: false, dontKnow: false },
+      { jp: "文化 (ぶんか)", tr: "kültür, medeniyet", favorite: false, dontKnow: false },
+      { jp: "文房具屋（ぶんぼうぐや）", tr: "kırtasiye dükkanı", favorite: false, dontKnow: false },
+      { jp: "へえ", tr: "gerçekten mi?, ah öyle mi?", favorite: false, dontKnow: false },
+      { jp: "変 (へん)", tr: "tuhaf", favorite: false, dontKnow: false },
+      { jp: "ぺらぺら", tr: "akıcı (konuşmak); bir kitapta sayfa çevirme sesi", favorite: false, dontKnow: false },
+      { jp: "忘年会（ぼうねんかい）", tr: "yıl sonu partisi (yılı unut partisi)", favorite: false, dontKnow: false },
+            { jp: "まぁまぁ", tr: "fena değil, idare eder; oldukça iyi", favorite: false, dontKnow: false },
+      { jp: "負ける（まける）", tr: "kaybetmek", favorite: false, dontKnow: false },
+      { jp: "先ず (まず)", tr: "öncelikle, ilk olarak", favorite: false, dontKnow: false },
+      { jp: "混ぜる (まぜる)", tr: "karıştırmak", favorite: false, dontKnow: false },
+      { jp: "未だ (まだ) (イマダ)", tr: "henüz; hala", favorite: false, dontKnow: false },
+      { jp: "祭り (まつり)", tr: "festival", favorite: false, dontKnow: false },
+      { jp: "間に合う （まにあう）", tr: "zamanında varmak; bir şey için yeterince iyi olmak, bir amaç için uygun olmak", favorite: false, dontKnow: false },
+      { jp: "漫画家 （まんがか）", tr: "manga sanatçısı", favorite: false, dontKnow: false },
+      { jp: "水着 （みずぎ）", tr: "mayo", favorite: false, dontKnow: false },
+      { jp: "味噌 (みそ)", tr: "miso, soya fasulyesi ezmesi", favorite: false, dontKnow: false },
+      { jp: "見つける （みつける）", tr: "bulmak, keşfetmek", favorite: false, dontKnow: false },
+      { jp: "息子 (むすこ)", tr: "erkek evlat", favorite: false, dontKnow: false },
+      { jp: "娘 (むすめ)", tr: "kız evlat", favorite: false, dontKnow: false },
+      { jp: "紫 (むらさき)", tr: "mor", favorite: false, dontKnow: false },
+      { jp: "無理 (むり)", tr: "imkânsız; mantıksız", favorite: false, dontKnow: false },
+      { jp: "無理する (むりする)", tr: "çok fazla çabalamak, çok sıkı çalışmak", favorite: false, dontKnow: false },
+      { jp: "迷惑 (めいわく)", tr: "rahatsız edici, can sıkıcı, dertli, sıkıntılı", favorite: false, dontKnow: false },
+      { jp: "召し上がる (めしあがる)", tr: "yemek, içmek (resmi)", favorite: false, dontKnow: false },
+      { jp: "面接 (めんせつ)", tr: "görüşme (iş görüşmesi gibi)", favorite: false, dontKnow: false },
+      { jp: "もう", tr: "çoktan / already", favorite: false, dontKnow: false },
+      { jp: "申す (もうす)", tr: "söylemek; denmek (resmi 言う)", favorite: false, dontKnow: false },
+      { jp: "燃える (もえる)", tr: "yanmak", favorite: false, dontKnow: false },
+      { jp: "持っていく （もっていく）", tr: "(cansız bir varlığı bir yere) götürmek", favorite: false, dontKnow: false },
+      { jp: "持ってくる （もってくる）", tr: "(cansız bir varlığı bir yere) getirmek", favorite: false, dontKnow: false },
+      { jp: "戻る (もどる)", tr: "geri dönmek", favorite: false, dontKnow: false },
+      { jp: "桃 (もも)", tr: "şeftali", favorite: false, dontKnow: false },
+      { jp: "貰う (もらう)", tr: "almak (hem somut, hem soyut anlamda)", favorite: false, dontKnow: false },
+      { jp: "焼く （やく）", tr: "kızartmak, yakmak", favorite: false, dontKnow: false },
+      { jp: "約 (やく)", tr: "yaklaşık", favorite: false, dontKnow: false },
+      { jp: "優しい (やさしい)", tr: "kibar, nazik", favorite: false, dontKnow: false },
+      { jp: "家賃 (やちん)", tr: "kira", favorite: false, dontKnow: false },
+      { jp: "薬局 (やっきょく)", tr: "eczane", favorite: false, dontKnow: false },
+      { jp: "やっと", tr: "sonunda, nihayet", favorite: false, dontKnow: false },
+      { jp: "止む (やむ)", tr: "durmak, dinmek", favorite: false, dontKnow: false },
+      { jp: "夢 (ゆめ)", tr: "rüya, hayal", favorite: false, dontKnow: false },
+      { jp: "洋服屋 (ようふくや)", tr: "kıyafet mağazası", favorite: false, dontKnow: false },
+      { jp: "予定 (よてい)", tr: "plan, program", favorite: false, dontKnow: false },
+      { jp: "予報 (よほう)", tr: "tahmin; hava tahmini", favorite: false, dontKnow: false },
+      { jp: "予約 (よやく)", tr: "rezervasyon; abonelik", favorite: false, dontKnow: false },
+      { jp: "喜ぶ (よろこぶ)", tr: "hoşnut olmak, memnun olmak; kutlamak", favorite: false, dontKnow: false },
+      { jp: "宜しくお願いします (よろしくおねがいします)", tr: "Çok sayıda olumlu anlamı var; başkalarından olumlu muamele beklediğini ifade etmek", favorite: false, dontKnow: false },
+      { jp: "留学 (りゅうがく)", tr: "yurt dışında öğrenim görme", favorite: false, dontKnow: false },
+      { jp: "理由（りゆう）", tr: "sebep, gerekçe", favorite: false, dontKnow: false },
+      { jp: "旅館 (りょかん)", tr: "geleneksel Japon hanı", favorite: false, dontKnow: false },
+      { jp: "履歴書 (りれきしょ)", tr: "özgeçmiş, hayat hikayesi, biyografi", favorite: false, dontKnow: false },
+      { jp: "りんご", tr: "elma", favorite: false, dontKnow: false },
+      { jp: "歴史（れきし）", tr: "tarih", favorite: false, dontKnow: false },
+      { jp: "連絡 (れんらく)", tr: "iletişim, bağlantı, temas, irtibat", favorite: false, dontKnow: false },
+      { jp: "老後 (ろうご)", tr: "yaşlılık", favorite: false, dontKnow: false },
+      { jp: "別れる (わかれる)", tr: "ayrılmak (insanlardan)", favorite: false, dontKnow: false },
+      { jp: "分ける（わける）", tr: "ayırmak, bölmek, ayrıştırmak", favorite: false, dontKnow: false },
+      { jp: "笑う (わらう)", tr: "gülmek", favorite: false, dontKnow: false },
+      { jp: "アルバイト", tr: "yarı zamanlı iş", favorite: false, dontKnow: false },
+      { jp: "アレルギー", tr: "alerji", favorite: false, dontKnow: false },
+      { jp: "イベント", tr: "etkinlik", favorite: false, dontKnow: false },
+      { jp: "エンジニア", tr: "mühendis", favorite: false, dontKnow: false },
+      { jp: "カフェ", tr: "kafe", favorite: false, dontKnow: false },
+      { jp: "ガス", tr: "gaz; benzin", favorite: false, dontKnow: false },
+      { jp: "ガムテープ", tr: "koli bandı", favorite: false, dontKnow: false },
+      { jp: "キログラム", tr: "kilogram", favorite: false, dontKnow: false },
+      { jp: "クリーニング", tr: "kuru temizleme, temizlik, çamaşır servisi", favorite: false, dontKnow: false },
+      { jp: "コンサート", tr: "konser", favorite: false, dontKnow: false },
+      { jp: "コンビニ", tr: "market (A101)", favorite: false, dontKnow: false },
+      { jp: "ジーンズ", tr: "kot pantolon", favorite: false, dontKnow: false },
+      { jp: "タオル", tr: "havlu", favorite: false, dontKnow: false },
+      { jp: "チケット", tr: "bilet", favorite: false, dontKnow: false },
+      { jp: "購入 (こうにゅう)", tr: "satın alma", favorite: false, dontKnow: false },
+      { jp: "デザイナー", tr: "tasarımcı", favorite: false, dontKnow: false },
+      { jp: "トラック", tr: "kamyon, tır", favorite: false, dontKnow: false },
+      { jp: "ドレス", tr: "elbise", favorite: false, dontKnow: false },
+      { jp: "パン屋", tr: "fırın, ekmekci", favorite: false, dontKnow: false },
+      { jp: "ピンク", tr: "pembe; erotik", favorite: false, dontKnow: false },
+      { jp: "プラスチック", tr: "plastik", favorite: false, dontKnow: false },
+      { jp: "ベトナム", tr: "Vietnam", favorite: false, dontKnow: false },
+      { jp: "ボランティア", tr: "gönüllü; gönüllü çalışma", favorite: false, dontKnow: false },
+      { jp: "リサイクル", tr: "geri dönüşüm", favorite: false, dontKnow: false },
+      { jp: "不動さん屋 （ふどうさんや）", tr: "emlakçı", favorite: false, dontKnow: false },
+      { jp: "不動さん (ふどうさん)", tr: "taşınmaz mal, emlak", favorite: false, dontKnow: false },
+      { jp: "二十四日 （にじゅうよっか）", tr: "ayın 24. günü; 24 gün", favorite: false, dontKnow: false },
+      { jp: "何年 (なんねん)", tr: "hangi yıl", favorite: false, dontKnow: false },
+      { jp: "何日（なんにち）", tr: "hangi gün", favorite: false, dontKnow: false },
+      { jp: "何月（なんがつ）", tr: "hangi ay", favorite: false, dontKnow: false },
+      { jp: "勝つ (かつ)", tr: "kazanmak", favorite: false, dontKnow: false },
+      { jp: "十一日 （じゅういちにち）", tr: "ayın 11. günü; 11 gün", favorite: false, dontKnow: false },
+      { jp: "十四日 （じゅうよっか）", tr: "ayın 14. günü; 14 gün", favorite: false, dontKnow: false },
+      { jp: "台 (だい)", tr: "makinalar, vehicles, büyük mobilyalar, elektronikler için kullanılan bir sayma sözcüğü", favorite: false, dontKnow: false },
+      { jp: "枚 (まい)", tr: "düz şeyler için bir sayma sözcüğü", favorite: false, dontKnow: false },
+      { jp: "正社員 (せいしゃいん)", tr: "tam zamanlı çalışan", favorite: false, dontKnow: false },
+      { jp: "当日（とうじつ）", tr: "söz konusu gün, bahsi geçen gün, o gün", favorite: false, dontKnow: false },
+      { jp: "出番 (でばん)", tr: "bir şeyin veya kişinin sırası, görev anı, sahneye çıkma zamanı", favorite: false, dontKnow: false },
+      { jp: "降らせる (ふらせる)", tr: "yağdırmak (yağmur ve kar gibi)", favorite: false, dontKnow: false },
+      { jp: "様に （ように）", tr: "gibi; amacıyla, için, umarım", favorite: false, dontKnow: false },
+      { jp: "瞬間（しゅんかん）", tr: "an", favorite: false, dontKnow: false },
+      { jp: "させる", tr: "yaptırmak", favorite: false, dontKnow: false },
+      { jp: "そっか", tr: "ah tamam, demek öyle; öyle mi", favorite: false, dontKnow: false },
+      { jp: "気を張る（きをはる）", tr: "tetikte olmak, dikkatli olmak, gergin olmak", favorite: false, dontKnow: false },
+      { jp: "職場 (しょくば)", tr: "iş yeri", favorite: false, dontKnow: false },
+      { jp: "しまう", tr: "bir eylemin istenmeyen bir şekilde sonuçlandığını belirten ek", favorite: false, dontKnow: false },
+      { jp: "配信 (はいしん)", tr: "yayın (genellikle çevrimiçi yayın)", favorite: false, dontKnow: false },
+      { jp: "とか", tr: "gibi, falan", favorite: false, dontKnow: false },
+            { jp: "何時か （いつか）", tr: "bir gün, bir ara", favorite: false, dontKnow: false },
+      { jp: "まさか", tr: "asla (beklenmedik bir durum)", favorite: false, dontKnow: false },
+      { jp: "中でも (なかでも)", tr: "(öbür şeyler) arasında, özellikle", favorite: false, dontKnow: false },
+      { jp: "し", tr: "cümleye (ve) anlamı katar (devam eden bir ifade)", favorite: false, dontKnow: false },
+      { jp: "魅力 （みりょく）", tr: "cazibe", favorite: false, dontKnow: false },
+      { jp: "名前だけ （なまえだけ）", tr: "sadece isim", favorite: false, dontKnow: false },
+      { jp: "小学生 (しょうがくせい)", tr: "ilkokul öğrencisi", favorite: false, dontKnow: false },
+      { jp: "頃 （ころ）", tr: "zaman, zamanlarında, (zaman olarak) civarlarında", favorite: false, dontKnow: false },
+      { jp: "から", tr: "-den / -dan sonra; için, sebebiyle", favorite: false, dontKnow: false },
+      { jp: "今回 (こんかい)", tr: "bu sefer", favorite: false, dontKnow: false },
+      { jp: "ヤバい", tr: "tehlikeli; korkunç; harika; inanılmaz", favorite: false, dontKnow: false },
+      { jp: "もしかしたら", tr: "belki", favorite: false, dontKnow: false },
+      { jp: "届く (とどく)", tr: "ulaşmak", favorite: false, dontKnow: false },
+      { jp: "爪（つめ）", tr: "tırnak; pençe", favorite: false, dontKnow: false },
+      { jp: "爪痕 （つめあと）", tr: "yara, çizik; tırnak izi", favorite: false, dontKnow: false },
+      { jp: "残す (のこす)", tr: "bırakmak (geride, yapılmamış, bitirilmemiş); saklamak, biriktirmek, artırmak", favorite: false, dontKnow: false },
+      { jp: "勿論 (もちろん)", tr: "tabii ki, elbette", favorite: false, dontKnow: false },
+      { jp: "目当て （めあて）", tr: "amaç; hedef", favorite: false, dontKnow: false },
+      { jp: "でしょう", tr: "sanırım, tahminimce, bence", favorite: false, dontKnow: false },
+      { jp: "こう言う (こういう)", tr: "böyle, bu tür, bu şekilde", favorite: false, dontKnow: false },
+      { jp: "そう言う (そういう)", tr: "böyle, bu tür, bu şekilde", favorite: false, dontKnow: false },
+      { jp: "子たち （こたち）", tr: "çocuklar", favorite: false, dontKnow: false },
+      { jp: "みたい", tr: "gibi", favorite: false, dontKnow: false },
+      { jp: "どう言う （どういう）", tr: "ne tür, ne şekilde, nasıl", favorite: false, dontKnow: false },
+      { jp: "文 (ぶん)", tr: "cümle", favorite: false, dontKnow: false },
+      { jp: "なんですけど", tr: "olmakla birlikte, ama (kibarca)", favorite: false, dontKnow: false },
+      { jp: "でもあるんですけど", tr: "ama aynı zamanda, fakat şu da var ki (farklı bakış açılarını kibarca sunmak veya belirli özelliklere dikkat çekmek için kullanılır.)", favorite: false, dontKnow: false },
+      { jp: "楽曲 (がっきょく)", tr: "şarkılar, melodiler, müzik parçaları", favorite: false, dontKnow: false },
+      { jp: "掛け声（かけごえ）", tr: "tezahürat, bağırmak", favorite: false, dontKnow: false },
+      { jp: "適切 （てきせつ）", tr: "uygun", favorite: false, dontKnow: false },
+      { jp: "だけ", tr: "sadece", favorite: false, dontKnow: false },
+      { jp: "など", tr: "etc. / gibi, vesaire", favorite: false, dontKnow: false },
+      { jp: "頻繁 （ひんぱん）", tr: "sıklıkla", favorite: false, dontKnow: false },
+      { jp: "例えば（たとえば）", tr: "örneğin", favorite: false, dontKnow: false },
+      { jp: "調子 (ちょうし)", tr: "davranış, mod, durum, şekil; ton, ritim, melodi, akort", favorite: false, dontKnow: false },
+      { jp: "ああ", tr: "ah, evet", favorite: false, dontKnow: false },
+      { jp: "赤ちゃん (あかちゃん)", tr: "bebek, yavru", favorite: false, dontKnow: false },
+      { jp: "赤ん坊 (あかんぼう)", tr: "bebek, yavru", favorite: false, dontKnow: false },
+      { jp: "アクセサリー", tr: "aksesuar", favorite: false, dontKnow: false },
+      { jp: "アナウンサー", tr: "spiker", favorite: false, dontKnow: false },
+      { jp: "あんな", tr: "öyle, böyle", favorite: false, dontKnow: false },
+      { jp: "安心 (あんしん)", tr: "huzur", favorite: false, dontKnow: false },
+      { jp: "アルコール", tr: "alkol", favorite: false, dontKnow: false },
+      { jp: "浅い（あさい）", tr: "sığ", favorite: false, dontKnow: false },
+      { jp: "遊び (あそび)", tr: "oynamak", favorite: false, dontKnow: false },
+      { jp: "集まる (あつまる)", tr: "toplanmak", favorite: false, dontKnow: false },
+      { jp: "謝る (あやまる)", tr: "özür dilemek", favorite: false, dontKnow: false },
+      { jp: "倍 (ばい)", tr: "double, twice; kat (kaç kez katlanmış anlamında)", favorite: false, dontKnow: false },
+      { jp: "番組 (ばんぐみ)", tr: "program", favorite: false, dontKnow: false },
+      { jp: "ベル", tr: "çan, zil", favorite: false, dontKnow: false },
+      { jp: "美術館 (びじゅつかん)", tr: "sanat müzesi/galerisi", favorite: false, dontKnow: false },
+      { jp: "びっくり", tr: "şaşırmak", favorite: false, dontKnow: false },
+      { jp: "ビル", tr: "bina", favorite: false, dontKnow: false },
+      { jp: "貿易 (ぼうえき)", tr: "ticaret", favorite: false, dontKnow: false },
+      { jp: "部長 (ぶちょう)", tr: "müdür", favorite: false, dontKnow: false },
+      { jp: "文学 (ぶんがく)", tr: "edebiyat", favorite: false, dontKnow: false },
+      { jp: "文法 (ぶんぽう)", tr: "dilbilgisi", favorite: false, dontKnow: false },
+      { jp: "ちゃん", tr: "tanıdık dişi bireyler için ek", favorite: false, dontKnow: false },
+      { jp: "チェック", tr: "kontrol etmek", favorite: false, dontKnow: false },
+      { jp: "血 (ち)", tr: "kan", favorite: false, dontKnow: false },
+      { jp: "力 (ちから)", tr: "güç, enerji", favorite: false, dontKnow: false },
+      { jp: "地理 (ちり)", tr: "coğrafya", favorite: false, dontKnow: false },
+      { jp: "中学校 (ちゅうがっこう)", tr: "ortaokul", favorite: false, dontKnow: false },
+      { jp: "注意 (ちゅうい)", tr: "dikkat", favorite: false, dontKnow: false },
+      { jp: "注射 (ちゅうしゃ)", tr: "enjeksiyon", favorite: false, dontKnow: false },
+      { jp: "大事 (だいじ)", tr: "önemli", favorite: false, dontKnow: false },
+      { jp: "大体 (だいたい)", tr: "kabaca; genel", favorite: false, dontKnow: false },
+      { jp: "暖房 (だんぼう)", tr: "ısıtma (ev içi)", favorite: false, dontKnow: false },
+      { jp: "電報 (でんぽう)", tr: "telgraf", favorite: false, dontKnow: false },
+      { jp: "電灯 (でんとう)", tr: "elektrik ışığı", favorite: false, dontKnow: false },
+      { jp: "泥棒 (どろぼう)", tr: "hırsız", favorite: false, dontKnow: false },
+      { jp: "動物園（どうぶつえん）", tr: "hayvanat bahçesi", favorite: false, dontKnow: false },
+      { jp: "道具 (どうぐ)", tr: "alet", favorite: false, dontKnow: false },
+      { jp: "枝 (えだ)", tr: "dal", favorite: false, dontKnow: false },
+      { jp: "遠慮 (えんりょ)", tr: "kaçınmak, çekinmek", favorite: false, dontKnow: false },
+      { jp: "選ぶ (えらぶ)", tr: "seçmek", favorite: false, dontKnow: false },
+      { jp: "エスカレーター", tr: "yürüyen merdiven", favorite: false, dontKnow: false },
+      { jp: "ファックス", tr: "faks", favorite: false, dontKnow: false },
+      { jp: "増える（ふえる）", tr: "arttırmak", favorite: false, dontKnow: false },
+      { jp: "深い (ふかい)", tr: "derin", favorite: false, dontKnow: false },
+      { jp: "復習 (ふくしゅう)", tr: "gözden geçirmek, incelemek", favorite: false, dontKnow: false },
+      { jp: "複雑 (ふくざつ)", tr: "karmaşık", favorite: false, dontKnow: false },
+      { jp: "踏む (ふむ)", tr: "üzerine basmak; sorumluluk almak, risk almak, prosedür izlemek", favorite: false, dontKnow: false },
+      { jp: "降り出す (ふりだす)", tr: "yağmur, kar yağmaya başlaması", favorite: false, dontKnow: false },
+      { jp: "布団 (ふとん)", tr: "futon", favorite: false, dontKnow: false },
+      { jp: "太る (ふとる)", tr: "şişmanlamak, kilo almak", favorite: false, dontKnow: false },
+      { jp: "普通 (ふつう)", tr: "sıradan, normal", favorite: false, dontKnow: false },
+      { jp: "ガラス", tr: "bardak", favorite: false, dontKnow: false },
+      { jp: "ガソリン", tr: "benzin", favorite: false, dontKnow: false },
+      { jp: "ガソリンスタンド", tr: "benzin istasyonu", favorite: false, dontKnow: false },
+      { jp: "原因 (げんいん)", tr: "neden, sebep", favorite: false, dontKnow: false },
+      { jp: "下宿 (げしゅく)", tr: "yatılı konaklama, konuk evi", favorite: false, dontKnow: false },
+      { jp: "技術 (ぎじゅつ)", tr: "teknoloji; mühendislik; teknik, yetenek; sanat, zanaat", favorite: false, dontKnow: false },
+      { jp: "ごちそう", tr: "ziyafet", favorite: false, dontKnow: false },
+      { jp: "ご存じ (ごぞんじ)", tr: "bilmek", favorite: false, dontKnow: false },
+      { jp: "葉 (は)", tr: "yaprak", favorite: false, dontKnow: false },
+      { jp: "拝見 (はいけん)", tr: "görmek, bakmak", favorite: false, dontKnow: false },
+      { jp: "歯医者 (はいしゃ)", tr: "dişçi", favorite: false, dontKnow: false },
+      { jp: "はっきり", tr: "açıkça, net olarak", favorite: false, dontKnow: false },
+      { jp: "運ぶ (はこぶ)", tr: "taşımak", favorite: false, dontKnow: false },
+      { jp: "花見 (はなみ)", tr: "çiçek izleme", favorite: false, dontKnow: false },
+      { jp: "ハンドバッグ", tr: "el çantası", favorite: false, dontKnow: false },
+      { jp: "反対 (はんたい)", tr: "muhalefet", favorite: false, dontKnow: false },
+      { jp: "発音 (はつおん)", tr: "telaffuz", favorite: false, dontKnow: false },
+      { jp: "林 (はやし)", tr: "orman", favorite: false, dontKnow: false },
+      { jp: "返事 (へんじ)", tr: "cevap", favorite: false, dontKnow: false },
+      { jp: "火 (ひ)", tr: "ateş", favorite: false, dontKnow: false },
+      { jp: "酷い (ひどい)", tr: "korkunç, acımasız, sert", favorite: false, dontKnow: false },
+      { jp: "冷える (ひえる)", tr: "(bir şeyin) soğuması", favorite: false, dontKnow: false },
+      { jp: "髭 (ひげ)", tr: "sakal, bıyık", favorite: false, dontKnow: false },
+      { jp: "非常に（ひじょうに）", tr: "ekstrem, çok", favorite: false, dontKnow: false },
+      { jp: "光 (ひかり)", tr: "ışık", favorite: false, dontKnow: false },
+      { jp: "光る (ひかる)", tr: "parlamak, aydınlanmak", favorite: false, dontKnow: false },
+      { jp: "引き出し（ひきだし）", tr: "çekmece", favorite: false, dontKnow: false },
+      { jp: "引き出す（ひきだす）", tr: "(bir şeyi) çekip çıkarmak", favorite: false, dontKnow: false },
+      { jp: "飛行場 (ひこうじょう)", tr: "havaalanı", favorite: false, dontKnow: false },
+      { jp: "拾う (ひろう)", tr: "(bir yerden) toplamak, almak", favorite: false, dontKnow: false },
+      { jp: "昼間 (ひるま)", tr: "gündüz", favorite: false, dontKnow: false },
+      { jp: "昼休み (ひるやすみ)", tr: "öğle tatili", favorite: false, dontKnow: false },
+      { jp: "久しぶり (ひさしぶり)", tr: "uzun zamandır görüşemedik", favorite: false, dontKnow: false },
+      { jp: "褒める (ほめる)", tr: "övmek", favorite: false, dontKnow: false },
+      { jp: "翻訳 (ほんやく)", tr: "çeviri", favorite: false, dontKnow: false },
+      { jp: "星 (ほし)", tr: "yıldız", favorite: false, dontKnow: false },
+      { jp: "ほとんど", tr: "çoğunlukla", favorite: false, dontKnow: false },
+      { jp: "法律 (ほうりつ)", tr: "kanun", favorite: false, dontKnow: false },
+      { jp: "放送 (ほうそう)", tr: "yayın", favorite: false, dontKnow: false },
+      { jp: "一度 (いちど)", tr: "bir kez", favorite: false, dontKnow: false },
+      { jp: "以外 (いがい)", tr: "(onun) dışında", favorite: false, dontKnow: false },
+      { jp: "医学 (いがく)", tr: "tıp; ilaç", favorite: false, dontKnow: false },
+      { jp: "苛める（いじめる）", tr: "sataşmak, bullylemek", favorite: false, dontKnow: false },
+      { jp: "意見 (いけん)", tr: "fikir", favorite: false, dontKnow: false },
+      { jp: "生き物 (いきもの)", tr: "canlı yaratık", favorite: false, dontKnow: false },
+      { jp: "生きる (いきる)", tr: "yaşamak", favorite: false, dontKnow: false },
+      { jp: "以内 (いない)", tr: "içinde, beraberinde", favorite: false, dontKnow: false },
+      { jp: "祈る（いのる）", tr: "dua etmek", favorite: false, dontKnow: false },
+      { jp: "いっぱい", tr: "full", favorite: false, dontKnow: false },
+      { jp: "色んな (いろんな)", tr: "çeşitli", favorite: false, dontKnow: false },
+      { jp: "石 (いし)", tr: "taş", favorite: false, dontKnow: false },
+      { jp: "一生懸命（いっしょうけんめい）", tr: "çok zor", favorite: false, dontKnow: false },
+      { jp: "頂く (いただく)", tr: "almak (kibarca)", favorite: false, dontKnow: false },
+      { jp: "糸 (いと)", tr: "iplik", favorite: false, dontKnow: false },
+      { jp: "ジャム", tr: "reçel", favorite: false, dontKnow: false },
+      { jp: "時代 (じだい)", tr: "dönem, devir", favorite: false, dontKnow: false },
+      { jp: "事故 (じこ)", tr: "kaza", favorite: false, dontKnow: false },
+      { jp: "事務所 (じむしょ)", tr: "ofis", favorite: false, dontKnow: false },
+      { jp: "神社（じんじゃ）", tr: "şintoist tapınak, türbe", favorite: false, dontKnow: false },
+      { jp: "人口 (じんこう)", tr: "nüfus", favorite: false, dontKnow: false },
+      { jp: "人生 (じんせい)", tr: "insan hayatı", favorite: false, dontKnow: false },
+      { jp: "地震 (じしん)", tr: "deprem", favorite: false, dontKnow: false },
+      { jp: "辞典 (じてん)", tr: "sözlük", favorite: false, dontKnow: false },
+      { jp: "自由 (じゆう)", tr: "özgürlük", favorite: false, dontKnow: false },
+      { jp: "十分 (じゅうぶん)", tr: "yeterli", favorite: false, dontKnow: false },
+      { jp: "柔道（じゅうどう）", tr: "judo", favorite: false, dontKnow: false },
+      { jp: "住所 (じゅうしょ)", tr: "adres", favorite: false, dontKnow: false },
+      { jp: "カーテン", tr: "perde", favorite: false, dontKnow: false },
+      { jp: "壁 (かべ)", tr: "duvar", favorite: false, dontKnow: false },
+      { jp: "課長 (かちょう)", tr: "bölüm yöneticisi, bölüm şefi", favorite: false, dontKnow: false },
+      { jp: "帰り (かえり)", tr: "geri dönüş", favorite: false, dontKnow: false },
+      { jp: "変える (かえる)", tr: "değiştirmek", favorite: false, dontKnow: false },
+      { jp: "科学 (かがく)", tr: "bilim", favorite: false, dontKnow: false },
+      { jp: "鏡 (かがみ)", tr: "ayna", favorite: false, dontKnow: false },
+      { jp: "海岸 (かいがん)", tr: "sahil", favorite: false, dontKnow: false },
+      { jp: "会議 (かいぎ)", tr: "toplantı", favorite: false, dontKnow: false },
+      { jp: "会議室 (かいぎしつ)", tr: "konferans odası", favorite: false, dontKnow: false },
+      { jp: "会場 (かいじょう)", tr: "toplantı alanı; mekan", favorite: false, dontKnow: false },
+    ];
+
+    let storedCards = JSON.parse(localStorage.getItem("cards")) || [];
+    let lessonState = JSON.parse(localStorage.getItem("lessonState")) || null;
+    let studyMode = localStorage.getItem("studyMode") || "random"; 
+    let trash = JSON.parse(localStorage.getItem("trash")) || [];
+    let currentLessonType = null;
+
+    // Aynı kartı tekrar eklememek için kontrol (jp + tr bazlı)
+    function mergeCards(defaultCards, storedCards) {
+      const merged = [...storedCards];
+    
+      defaultCards.forEach(def => {
+        const exists = storedCards.some(c => c.jp === def.jp && c.tr === def.tr);
+        if (!exists) {
+          merged.push(def);
+        }
+      });
+    
+      return merged;
+    }
+    
+    let cards = mergeCards(defaultCards, storedCards);
+
+    let lessonCards = [];
+    let currentIndex = 0;
+    let currentCard = null;
+    let autoPronounce = false; // telaffuz varsayılan kapalı
+    let volumeLevel = 1; // 0.0 - 1.0
+
+    // Varsayılan kısayollar
+    let shortcuts = {
+      know: "ArrowRight",
+      dontKnow: "ArrowLeft",
+      favorite: "f",
+      speak: "m",
+      reveal: " "
+    };
+
+    function saveCards() {
+      localStorage.setItem("cards", JSON.stringify(cards));
+    }
+
+    function startLesson(type) {
+      currentLessonType = type;
+      const saved = JSON.parse(localStorage.getItem("lessonState"));
+
+      // Eğer ALL seçildi ve kayıt varsa
+      if (type === "all" && saved && saved.type === "all") {
+        const devam = confirm("Kaldığınız yerden devam etmek ister misiniz?");
+        
+        if (devam) {
+          lessonCards = saved.lessonCards.filter(savedCard =>
+            cards.some(c => c.jp === savedCard.jp && c.tr === savedCard.tr)
+          );
+          currentIndex = saved.currentIndex;
+          showCard();
+          document.getElementById("card-area").classList.remove("hidden");
+          return;
+        } else {
+          localStorage.removeItem("lessonState");
+        }
+      }
+
+      // Normal başlatma
+      if (type === "all") lessonCards = [...cards];
+      if (type === "favorites") lessonCards = cards.filter(c => c.favorite);
+      if (type === "dontknow") lessonCards = cards.filter(c => c.dontKnow);
+
+      if (lessonCards.length === 0) {
+        alert("Bu derste çalışacak kart yok.");
+        return;
+      }
+
+      if (studyMode === "random") {
+        shuffle(lessonCards);
+      } else {
+        lessonCards.sort((a, b) => a.jp.localeCompare(b.jp, "ja"));
+      }
+      currentIndex = 0;
+
+      saveLessonState(type); // 👈 önemli
+
+      showCard();
+
+      document.getElementById("card-area").classList.remove("hidden");
+      document.getElementById("list-panel").classList.add("hidden");
+      document.getElementById("stats-panel").classList.add("hidden");
+      document.getElementById("settings-panel").classList.add("hidden");
+    }
+
+    function showCard() {
+      currentCard = lessonCards[currentIndex];
+      document.getElementById("jp-text").textContent = currentCard.jp;
+      document.getElementById("tr-text").textContent = currentCard.tr;
+      document.getElementById("tr-text").classList.add("hidden");
+      document.getElementById("jp-text").onclick = () => {
+      document.getElementById("tr-text").classList.toggle("hidden");
+      };
+      if (autoPronounce) speakJapanese(currentCard.jp);
+      const status = [];
+      if (currentCard.favorite) status.push("⭐ Favori");
+      if (currentCard.dontKnow) status.push("❓ Bilinmiyor");
+
+      document.getElementById("card-status").textContent =
+        status.length ? status.join(" | ") : "✔ Normal";
+
+      document.getElementById("progress").textContent =
+        `${currentIndex + 1} / ${lessonCards.length}`;  
+    }
+
+    function markKnow() {
+      currentCard.dontKnow = false;
+      saveCards();
+      nextCard();
+    }
+
+    function markDontKnow() {
+      currentCard.dontKnow = true;
+      saveCards();
+      nextCard();
+    }
+
+    function toggleFavorite() {
+      currentCard.favorite = !currentCard.favorite;
+      saveCards();
+      alert(currentCard.favorite ? "Favorilere eklendi" : "Favorilerden çıkarıldı");
+    }
+
+    function nextCard() {
+      currentIndex++;
+
+      if (currentIndex >= lessonCards.length) {
+        alert("Ders bitti!");
+        localStorage.removeItem("lessonState"); // 👈 sıfırla
+        showStats();
+      } else {
+        saveLessonState(currentLessonType);
+        showCard();
+      }
+    }
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    function showAllCards() { renderList(cards, "Tüm Kartlar"); }
+    function showFavorites() { renderList(cards.filter(c => c.favorite), "Favori Kartlar"); }
+    function showDontKnow() { renderList(cards.filter(c => c.dontKnow), "Bilmediğim Kartlar"); }
+
+    function renderList(list, title) {
+      let html = `<h2>${title}</h2>`;
+      html += `<button onclick="addCard()">➕ Yeni Kart Ekle</button>`;
+      list.forEach((c, i) => {
+        html += `<div class="list-item">
+          <span>${c.jp} — ${c.tr}</span>
+          <button onclick="editCard(${cards.indexOf(c)})">✏️</button>
+          <button onclick="deleteCard(${cards.indexOf(c)})">🗑️</button>
+          <button onclick="toggleFav(${cards.indexOf(c)})">⭐</button>
+          <button onclick="toggleDontKnow(${cards.indexOf(c)})">❓</button>
+          <button onclick="speakJapanese('${c.jp.replace(/'/g, "\\'")}')">🔊</button>
+        </div>`;
+      });
+      document.getElementById("list-panel").innerHTML = html;
+      document.getElementById("list-panel").classList.remove("hidden");
+      document.getElementById("card-area").classList.add("hidden");
+      document.getElementById("stats-panel").classList.add("hidden");
+      document.getElementById("settings-panel").classList.add("hidden");
+    }
+
+    function addCard() {
+      const jp = prompt("Japonca:");
+      const tr = prompt("Türkçe:");
+      if (jp && tr) {
+        cards.push({ jp, tr, favorite: false, dontKnow: false });
+        saveCards();
+        showAllCards();
+      }
+    }
+
+    function editCard(i) {
+      const jp = prompt("Yeni Japonca:", cards[i].jp);
+      const tr = prompt("Yeni Türkçe:", cards[i].tr);
+      if (jp && tr) {
+        cards[i].jp = jp;
+        cards[i].tr = tr;
+        saveCards();
+        showAllCards();
+      }
+    }
+
+    function deleteCard(i) {
+      if (confirm("Silmek istediğinize emin misiniz?")) {
+        lessonCards = lessonCards.filter(c => c !== cards[i]);
+        trash.push(cards[i]);
+        cards.splice(i, 1);
+        saveCards();
+        saveTrash();
+        showAllCards();
+      }
+      if (currentIndex >= lessonCards.length) {
+        currentIndex = lessonCards.length - 1;
+      }
+    }
+
+    function saveTrash() {
+      localStorage.setItem("trash", JSON.stringify(trash));
+    }
+
+    function toggleFav(i) {
+      cards[i].favorite = !cards[i].favorite;
+      saveCards();
+      showAllCards();
+    }
+
+    function toggleDontKnow(i) {
+      cards[i].dontKnow = !cards[i].dontKnow;
+      saveCards();
+      showAllCards();
+    }
+
+    function showStats() {
+      const total = cards.length;
+      const fav = cards.filter(c => c.favorite).length;
+      const dk = cards.filter(c => c.dontKnow).length;
+      document.getElementById("stats-panel").innerHTML =
+        `Toplam kart: ${total}<br>Favoriler: ${fav}<br>Bilmediklerim: ${dk}`;
+      document.getElementById("stats-panel").classList.remove("hidden");
+      document.getElementById("card-area").classList.add("hidden");
+      document.getElementById("list-panel").classList.add("hidden");
+      document.getElementById("settings-panel").classList.add("hidden");
+    }
+
+    // Japonca sesli okuma
+    function speakJapanese(text) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "ja-JP";
+      utterance.volume = volumeLevel;
+      speechSynthesis.speak(utterance);
+    }
+
+    // Telaffuz aç/kapat
+    function toggleAutoPronounce() {
+      autoPronounce = !autoPronounce;
+      document.getElementById("pronounce-btn").textContent =
+        autoPronounce ? "🎙️ Telaffuz: Açık" : "🎙️ Telaffuz: Kapalı";
+    }
+
+    // Ayarlar paneli
+    function showSettings() {
+      let html = `<h2>⚙️ Ayarlar</h2>`;
+
+      html += `<label>Ses Seviyesi: 
+        <input type="range" min="0" max="1" step="0.1" value="${volumeLevel}" 
+        onchange="volumeLevel=this.value"></label><br><br>`;
+
+      html += `<h3>Kısayollar</h3>`;
+
+      for (let key in shortcuts) {
+        html += `${key}:
+          <input type="text" value="${shortcuts[key]}" 
+          onfocus="this.value=''" 
+          onkeydown="setShortcut('${key}', event)">
+          <br>`;
+      }
+
+      // ✅ BURAYA TAŞINDI
+      html += `<h3>Çalışma Türü</h3>
+        <label>
+          <input type="radio" name="mode" value="random" ${studyMode==="random"?"checked":""}
+          onchange="setStudyMode('random')"> Rastgele
+        </label><br>
+        <label>
+          <input type="radio" name="mode" value="alphabetical" ${studyMode==="alphabetical"?"checked":""}
+          onchange="setStudyMode('alphabetical')"> Alfabetik
+        </label><br><br>`;
+
+      document.getElementById("settings-panel").innerHTML = html;
+      document.getElementById("settings-panel").classList.remove("hidden");
+      document.getElementById("card-area").classList.add("hidden");
+      document.getElementById("list-panel").classList.add("hidden");
+      document.getElementById("stats-panel").classList.add("hidden");
+    }
+
+    function setShortcut(action, event) {
+      event.preventDefault();
+      shortcuts[action] = event.key;
+      showSettings();
+    }
+
+    function saveLessonState(type) {
+      const state = {
+        type,
+        lessonCards,
+        currentIndex
+      };
+      localStorage.setItem("lessonState", JSON.stringify(state));
+    }
+
+    function setStudyMode(mode) {
+      studyMode = mode;
+      localStorage.setItem("studyMode", mode);
+    }
+
+    function showTrash() {
+      let html = `<h2>🗑️ Çöp Kutusu</h2>`;
+
+      if (trash.length === 0) {
+        html += `<p>Çöp kutusu boş</p>`;
+      }
+
+      trash.forEach((c, i) => {
+        html += `<div class="list-item">
+          <span>${c.jp} — ${c.tr}</span>
+          <button onclick="restoreCard(${i})">♻️ Geri Al</button>
+          <button onclick="permanentlyDelete(${i})">❌ Kalıcı Sil</button>
+        </div>`;
+      });
+
+      document.getElementById("list-panel").innerHTML = html;
+      document.getElementById("list-panel").classList.remove("hidden");
+      document.getElementById("card-area").classList.add("hidden");
+      document.getElementById("stats-panel").classList.add("hidden");
+      document.getElementById("settings-panel").classList.add("hidden");
+    }
+
+    function restoreCard(i) {
+      const exists = cards.some(c => c.jp === trash[i].jp && c.tr === trash[i].tr);
+
+      if (!exists) {
+        cards.push(trash[i]);
+      }
+
+      trash.splice(i, 1);
+      saveCards();
+      saveTrash();
+      showTrash();
+    }
+
+    function permanentlyDelete(i) {
+      if (confirm("Kalıcı olarak silinsin mi?")) {
+        trash.splice(i, 1);
+        saveTrash();
+        showTrash();
+      }
+    }
+    // Klavye kısayolları
+    document.addEventListener("keydown", (e) => {
+      if (!currentCard) return;
+      if (e.key === shortcuts.know) markKnow();
+      if (e.key === shortcuts.dontKnow) markDontKnow();
+      if (e.key === shortcuts.favorite) toggleFavorite();
+      if (e.key === shortcuts.speak) speakJapanese(currentCard.jp);
+      if (e.key === shortcuts.reveal) {
+        e.preventDefault();
+        document.getElementById("tr-text").classList.toggle("hidden");
+      }
+    });
+  </script>
+</body>
+</html>
